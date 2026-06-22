@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claude Traffic Light — Mac Setup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0e1117;
+      color: #f4f5f7;
+      font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      padding: 40px 20px 80px;
+    }
+
+    .page {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .header-emoji {
+      font-size: 48px;
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+
+    header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin-bottom: 10px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: #555;
+      color: #f4f5f7;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    /* ── Download hero ── */
+    .dl-hero {
+      background: #171a21;
+      border: 1px solid #2b303b;
+      border-radius: 14px;
+      padding: 32px 28px 28px;
+      margin-bottom: 40px;
+      text-align: center;
+    }
+    .dl-hero-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .dl-hero-dots {
+      display: inline-flex;
+      gap: 5px;
+    }
+    .dl-hero-dots span {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dl-hero-dots .dot-red   { background: #eb2d2d; }
+    .dl-hero-dots .dot-amber { background: #ff9600; }
+    .dl-hero-dots .dot-green { background: #2dcd5f; }
+    .dl-hero-name {
+      font-size: 18px;
+      font-weight: 800;
+    }
+    .dl-hero-sub {
+      color: #9aa3b2;
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+    .dl-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #2dcd5f;
+      color: #0a1f10;
+      font-weight: 700;
+      font-size: 15px;
+      padding: 13px 28px;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .dl-btn:hover { opacity: 0.85; }
+    .dl-hint {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #5a6275;
+    }
+    .dl-hint code {
+      background: #0d1117;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #7ee787;
+    }
+    .dl-footer {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid #2b303b;
+      font-size: 12px;
+      color: #5a6275;
+    }
+    .dl-footer a { color: #9aa3b2; }
+
+    /* ── Section headings ── */
+    .section {
+      margin-bottom: 40px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #9aa3b2;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #2b303b;
+    }
+
+    /* ── Flow diagram ── */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 8px 0;
+    }
+
+    .flow-box {
+      background: #171a21;
+      border: 1px solid #2b303b;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 13px;
+      line-height: 1.4;
+      flex-shrink: 0;
+    }
+
+    .flow-box strong {
+      display: block;
+      font-size: 12px;
+      color: #9aa3b2;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .flow-box span {
+      color: #f4f5f7;
+      font-weight: 600;
+    }
+
+    .flow-arrow {
+      color: #9aa3b2;
+      font-size: 18px;
+      flex-shrink: 0;
+      padding: 0 4px;
+    }
+
+    .flow-label {
+      font-size: 11px;
+      color: #9aa3b2;
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    .flow-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Requirements checklist ── */
+    .checklist {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .checklist li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: #171a21;
+      border: 1px solid #2b303b;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 14px;
+    }
+
+    .checklist li .check-icon {
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      background: #2dcd5f22;
+      border: 1.5px solid #2dcd5f;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1px;
+    }
+
+    .checklist li .check-icon::after {
+      content: "";
+      display: block;
+      width: 5px;
+      height: 9px;
+      border-right: 2px solid #2dcd5f;
+      border-bottom: 2px solid #2dcd5f;
+      transform: rotate(42deg) translate(-1px, -1px);
+    }
+
+    .checklist li .req-text {
+      flex: 1;
+    }
+
+    .checklist li .req-text small {
+      display: block;
+      color: #9aa3b2;
+      font-size: 12px;
+      margin-top: 1px;
+    }
+
+    /* ── Steps ── */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .step {
+      background: #171a21;
+      border: 1px solid #2b303b;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 20px;
+      border-bottom: 1px solid #2b303b;
+    }
+
+    .step-num {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #2dcd5f22;
+      border: 1.5px solid #2dcd5f;
+      color: #2dcd5f;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f4f5f7;
+    }
+
+    .step-body {
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .step-body p {
+      color: #c9d1d9;
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .step-body p code {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: "SF Mono", "Fira Mono", "Consolas", monospace;
+      font-size: 13px;
+      color: #7ee787;
+    }
+
+    /* ── Code blocks ── */
+    .code-block {
+      position: relative;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .code-block pre {
+      padding: 16px;
+      overflow-x: auto;
+      font-family: "SF Mono", "Fira Mono", "Consolas", monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #7ee787;
+      white-space: pre;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #9aa3b2;
+      font-size: 12px;
+      font-family: -apple-system, system-ui, sans-serif;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .copy-btn:hover {
+      background: #30363d;
+      color: #f4f5f7;
+      border-color: #484f58;
+    }
+
+    .copy-btn.copied {
+      color: #2dcd5f;
+      border-color: #2dcd5f44;
+      background: #2dcd5f11;
+    }
+
+    /* ── Tip box ── */
+    .tip {
+      display: flex;
+      gap: 10px;
+      background: #ff960011;
+      border: 1px solid #ff960044;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #c9d1d9;
+      align-items: flex-start;
+    }
+
+    .tip .tip-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ── Info box ── */
+    .info {
+      display: flex;
+      gap: 10px;
+      background: #2dcd5f11;
+      border: 1px solid #2dcd5f33;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #c9d1d9;
+      align-items: flex-start;
+    }
+
+    .info .info-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ── Expected response ── */
+    .expected {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #9aa3b2;
+    }
+
+    .expected .exp-val {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-family: "SF Mono", "Fira Mono", "Consolas", monospace;
+      color: #7ee787;
+    }
+
+    .warn-line {
+      font-size: 13px;
+      color: #ff9600;
+    }
+
+    .warn-line::before {
+      content: "! ";
+      font-weight: 700;
+    }
+
+    /* ── Light legend ── */
+    .light-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .light-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #c9d1d9;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot-green { background: #2dcd5f; box-shadow: 0 0 6px #2dcd5f88; }
+    .dot-amber { background: #ff9600; box-shadow: 0 0 6px #ff960088; animation: pulse 1.2s ease-in-out infinite; }
+    .dot-red   { background: #eb2d2d; box-shadow: 0 0 6px #eb2d2d88; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.45; }
+    }
+
+    /* ── Primary device note ── */
+    .primary-note {
+      background: #171a21;
+      border: 1px solid #2b303b;
+      border-radius: 12px;
+      padding: 18px 20px;
+      font-size: 14px;
+      color: #c9d1d9;
+      line-height: 1.65;
+    }
+
+    .primary-note strong {
+      color: #f4f5f7;
+    }
+
+    /* ── Troubleshooting ── */
+    .trouble-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    details {
+      background: #171a21;
+      border: 1px solid #2b303b;
+      border-radius: 8px;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+
+    details[open] {
+      border-color: #484f58;
+    }
+
+    details summary {
+      padding: 13px 16px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: #f4f5f7;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      user-select: none;
+    }
+
+    details summary::-webkit-details-marker { display: none; }
+
+    details summary::before {
+      content: "›";
+      font-size: 18px;
+      color: #9aa3b2;
+      transition: transform 0.2s;
+      display: inline-block;
+      width: 14px;
+      text-align: center;
+    }
+
+    details[open] summary::before {
+      transform: rotate(90deg);
+    }
+
+    .trouble-body {
+      padding: 0 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 13px;
+      color: #c9d1d9;
+      line-height: 1.65;
+    }
+
+    .trouble-body p code {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: "SF Mono", "Fira Mono", "Consolas", monospace;
+      font-size: 12px;
+      color: #7ee787;
+    }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 64px;
+      padding-top: 24px;
+      border-top: 1px solid #2b303b;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .footer-brand {
+      font-size: 13px;
+      color: #9aa3b2;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .footer-brand .tl {
+      display: inline-flex;
+      gap: 3px;
+      align-items: center;
+    }
+
+    .tl-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    footer a {
+      font-size: 13px;
+      color: #9aa3b2;
+      text-decoration: none;
+      border: 1px solid #2b303b;
+      border-radius: 6px;
+      padding: 6px 12px;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    footer a:hover {
+      color: #f4f5f7;
+      border-color: #484f58;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 520px) {
+      .flow { flex-direction: column; align-items: flex-start; }
+      .flow-arrow { transform: rotate(90deg); align-self: center; }
+      footer { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── Download hero ── -->
+  <div class="dl-hero">
+    <div class="dl-hero-title-row">
+      <span class="dl-hero-dots">
+        <span class="dot-red"></span>
+        <span class="dot-amber"></span>
+        <span class="dot-green"></span>
+      </span>
+      <span class="dl-hero-name">Claude Traffic Light</span>
+    </div>
+    <p class="dl-hero-sub">Mac — Sends your Claude sessions to the Windows HUD</p>
+    <a class="dl-btn"
+       href="https://github.com/YOUR_USERNAME/claude-status-hud/releases/latest/download/Claude-Traffic-Light-Mac.zip">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 16l-6-6h4V4h4v6h4l-6 6zm-7 2h14v2H5v-2z"/></svg>
+      Download for Mac
+    </a>
+    <p class="dl-hint">
+      Extract the zip → double-click <code>install.command</code> → done in 2 minutes
+    </p>
+    <div class="dl-footer">
+      👉 <strong>Replace YOUR_USERNAME</strong> in the download link after you push to GitHub.
+      &nbsp;·&nbsp;
+      <a href="setup-windows.html">← Windows setup</a>
+    </div>
+  </div>
+
+  <!-- ── Header ── -->
+  <header>
+    <div class="header-emoji">🚦</div>
+    <h1>Claude Traffic Light</h1>
+    <span class="badge"> Mac Setup</span>
+  </header>
+
+  <!-- ── How it works ── -->
+  <div class="section">
+    <div class="section-title">How it works</div>
+    <div class="flow">
+      <div class="flow-col">
+        <div class="flow-box">
+          <strong>MacBook</strong>
+          <span>Claude Code hook</span>
+        </div>
+        <div class="flow-label">sends state</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-col">
+        <div class="flow-box">
+          <strong>WiFi</strong>
+          <span>HTTP POST</span>
+        </div>
+        <div class="flow-label">port 51790</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-col">
+        <div class="flow-box">
+          <strong>Windows PC</strong>
+          <span>HUD Dashboard</span>
+        </div>
+        <div class="flow-label">shows overlay</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Requirements ── -->
+  <div class="section">
+    <div class="section-title">Requirements</div>
+    <ul class="checklist">
+      <li>
+        <div class="check-icon"></div>
+        <div class="req-text">
+          macOS 12 Monterey or later
+        </div>
+      </li>
+      <li>
+        <div class="check-icon"></div>
+        <div class="req-text">
+          Python 3.10+
+          <small>Already present with Xcode Command Line Tools or install via <code>brew install python</code></small>
+        </div>
+      </li>
+      <li>
+        <div class="check-icon"></div>
+        <div class="req-text">
+          Claude Code installed and running
+          <small>Install from <code>npm install -g @anthropic-ai/claude-code</code></small>
+        </div>
+      </li>
+      <li>
+        <div class="check-icon"></div>
+        <div class="req-text">
+          Windows HUD running on the same network
+          <small>See <a href="setup-windows.html" style="color:#9aa3b2">setup-windows.html</a> if you haven't set that up yet</small>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ── Steps ── -->
+  <div class="section">
+    <div class="section-title">Setup Steps</div>
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">1</div>
+          <div class="step-title">Copy the hook file</div>
+        </div>
+        <div class="step-body">
+          <p>Copy <code>hooks/remote_hook.py</code> from the Windows PC to your Mac. You can use a USB drive, a shared network folder, or AirDrop. Place it at the path below:</p>
+          <div class="code-block">
+            <pre>mkdir -p ~/.claude/hud
+# copy remote_hook.py from Windows share or USB to:
+~/.claude/hud/remote_hook.py</pre>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">2</div>
+          <div class="step-title">Set your Windows IP</div>
+        </div>
+        <div class="step-body">
+          <p>On the Windows PC, open a Command Prompt and run <code>ipconfig</code>. Look for the <strong>IPv4 Address</strong> under your active network adapter — it will look like <code>192.168.x.x</code>.</p>
+          <p>Then on your Mac, export these environment variables (replace the IP with your Windows machine's address):</p>
+          <div class="code-block">
+            <pre>export CLAUDE_HUD_URL="http://192.168.1.10:51790"
+export CLAUDE_HUD_DEVICE_ID="mac"
+export CLAUDE_HUD_DEVICE_NAME="MacBook"</pre>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <div class="tip">
+            <span class="tip-icon">💡</span>
+            <span>Add these exports to <code>~/.zshrc</code> so they persist across terminal sessions:</span>
+          </div>
+          <div class="code-block">
+            <pre>echo 'export CLAUDE_HUD_URL="http://192.168.1.10:51790"' >> ~/.zshrc
+echo 'export CLAUDE_HUD_DEVICE_ID="mac"' >> ~/.zshrc
+echo 'export CLAUDE_HUD_DEVICE_NAME="MacBook"' >> ~/.zshrc
+source ~/.zshrc</pre>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">3</div>
+          <div class="step-title">Test the connection</div>
+        </div>
+        <div class="step-body">
+          <p>Send a test ping to the Windows HUD to confirm the network path is open:</p>
+          <div class="code-block">
+            <pre>curl -X POST http://192.168.1.10:51790 \
+  -H "Content-Type: application/json" \
+  -d '{"device_id":"mac","device_name":"MacBook","session_id":"test","state":"idle","event":"test"}'</pre>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <div class="expected">
+            <span>Expected response:</span>
+            <span class="exp-val">ok</span>
+          </div>
+          <p class="warn-line">If you get <strong>connection refused</strong> — check Windows Firewall (see the Troubleshooting section below or the Windows setup page).</p>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">4</div>
+          <div class="step-title">Install the Claude Code hooks</div>
+        </div>
+        <div class="step-body">
+          <p>Run this one-liner in your terminal. It writes the Claude Code hook entries into <code>~/.claude/settings.json</code> and automatically backs up the existing file first.</p>
+          <div class="code-block">
+            <pre>python3 - &lt;&lt;'EOF'
+import os, json, shutil, time, sys
+
+SETTINGS = os.path.expanduser("~/.claude/settings.json")
+HOOK = os.path.expanduser("~/.claude/hud/remote_hook.py")
+CMD = f"python3 \"{HOOK}\""
+MARKER = "claude-hud-remote"
+EVENTS = ["SessionStart","UserPromptSubmit","PreToolUse","PostToolUse",
+          "Notification","Stop","SubagentStop","SessionEnd"]
+TOOL_EVENTS = {"PreToolUse","PostToolUse"}
+
+cfg = {}
+if os.path.exists(SETTINGS):
+    shutil.copy2(SETTINGS, f"{SETTINGS}.bak-{time.strftime('%Y%m%d-%H%M%S')}")
+    with open(SETTINGS) as f: cfg = json.load(f)
+
+hooks = cfg.setdefault("hooks", {})
+for ev in EVENTS:
+    entry = {"hooks": [{"type": "command", "command": CMD}]}
+    if ev in TOOL_EVENTS: entry["matcher"] = "*"
+    hooks.setdefault(ev, []).append(entry)
+
+with open(SETTINGS, "w") as f: json.dump(cfg, f, indent=2)
+print("Hooks installed into", SETTINGS)
+EOF</pre>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">5</div>
+          <div class="step-title">Verify</div>
+        </div>
+        <div class="step-body">
+          <p>Start a new Claude Code session on your Mac. Within a second you should see the Windows HUD overlay update.</p>
+          <div class="light-legend">
+            <div class="light-item"><span class="dot dot-green"></span> Green dot — Mac session is idle</div>
+            <div class="light-item"><span class="dot dot-amber"></span> Amber pulsing — Mac is working</div>
+            <div class="light-item"><span class="dot dot-red"></span> Red — Mac needs your approval</div>
+          </div>
+          <p>You can also trigger the hook manually to test without starting a full session:</p>
+          <div class="code-block">
+            <pre>python3 ~/.claude/hud/remote_hook.py &lt;&lt;&lt; '{"hook_event_name":"UserPromptSubmit","session_id":"test123"}'</pre>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <div class="info">
+            <span class="info-icon">✓</span>
+            <span>If the HUD overlay on Windows changes colour, everything is working correctly.</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </div>
+
+  <!-- ── Primary device ── -->
+  <div class="section">
+    <div class="section-title">Primary Device</div>
+    <div class="primary-note">
+      On the Windows PC, <strong>right-click the HUD overlay</strong> and select <strong>Primary device</strong>, then choose <strong>MacBook</strong>. This makes Mac alerts take top billing in the overlay — so when your Mac needs attention, the indicator is always front and centre regardless of what other devices are doing.
+    </div>
+  </div>
+
+  <!-- ── Troubleshooting ── -->
+  <div class="section">
+    <div class="section-title">Troubleshooting</div>
+    <div class="trouble-list">
+
+      <details>
+        <summary>curl returns connection refused</summary>
+        <div class="trouble-body">
+          <p>Windows Firewall is blocking port 51790. On the Windows PC, open an <strong>elevated Command Prompt</strong> (run as Administrator) and run:</p>
+          <div class="code-block">
+            <pre>netsh advfirewall firewall add rule name="Claude HUD" dir=in action=allow protocol=TCP localport=51790</pre>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <p>Then retry the curl test from Step 3. Also verify the Windows HUD is actually running — look for the tray icon in the system clock area.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Hook runs but nothing shows on Windows</summary>
+        <div class="trouble-body">
+          <p>Check that the environment variable is set correctly in your current shell:</p>
+          <div class="code-block">
+            <pre>echo $CLAUDE_HUD_URL</pre>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <p>If it prints nothing, your <code>~/.zshrc</code> exports haven't been sourced. Run <code>source ~/.zshrc</code> and try again.</p>
+          <p>Also confirm the Windows HUD process is running — its tray icon should be visible in the taskbar notification area. If it isn't, restart the HUD from the Windows setup.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Permission denied running remote_hook.py</summary>
+        <div class="trouble-body">
+          <p>Make the hook script executable:</p>
+          <div class="code-block">
+            <pre>chmod +x ~/.claude/hud/remote_hook.py</pre>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <p>Then re-run the manual test from Step 5 to confirm it works.</p>
+        </div>
+      </details>
+
+    </div>
+  </div>
+
+  <!-- ── Footer ── -->
+  <footer>
+    <div class="footer-brand">
+      <div class="tl">
+        <div class="tl-dot" style="background:#eb2d2d;"></div>
+        <div class="tl-dot" style="background:#ff9600;"></div>
+        <div class="tl-dot" style="background:#2dcd5f;"></div>
+      </div>
+      Claude Traffic Light · Mac
+    </div>
+    <a href="setup-windows.html">← Windows Setup</a>
+  </footer>
+
+</div><!-- /page -->
+
+<script>
+  function copyCode(btn) {
+    const pre = btn.closest('.code-block').querySelector('pre');
+    const text = pre.textContent;
+    navigator.clipboard.writeText(text).then(function () {
+      btn.textContent = '✓ Copied';
+      btn.classList.add('copied');
+      setTimeout(function () {
+        btn.textContent = 'Copy';
+        btn.classList.remove('copied');
+      }, 1800);
+    }).catch(function () {
+      // Fallback for older browsers / non-secure contexts
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.textContent = '✓ Copied';
+      btn.classList.add('copied');
+      setTimeout(function () {
+        btn.textContent = 'Copy';
+        btn.classList.remove('copied');
+      }, 1800);
+    });
+  }
+</script>
+</body>
+</html>

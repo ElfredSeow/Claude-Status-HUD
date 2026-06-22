@@ -13,6 +13,7 @@ import sys
 import json
 import time
 import shutil
+import subprocess
 
 HOME = os.path.expanduser("~")
 SETTINGS = os.path.join(HOME, ".claude", "settings.json")
@@ -81,7 +82,24 @@ def strip_ours(cfg):
     return cfg
 
 
+def ensure_pip_packages():
+    """Install pystray + Pillow if missing (needed for the system-tray icon)."""
+    missing = []
+    for pkg, import_name in [("pystray", "pystray"), ("Pillow", "PIL")]:
+        try:
+            __import__(import_name)
+        except ImportError:
+            missing.append(pkg)
+    if missing:
+        print(f"Installing {', '.join(missing)} for system-tray support…")
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "--quiet"] + missing
+        )
+        print(f"  Done: {', '.join(missing)} installed.")
+
+
 def install():
+    ensure_pip_packages()
     cfg = load()
     b = backup()
     strip_ours(cfg)  # avoid duplicates on re-run

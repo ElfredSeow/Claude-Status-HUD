@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Office HUD — Popup Mockup</title>
+<style>
+/* ── Reset & base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:         #0e1117;
+  --surface:    #171a21;
+  --surface2:   #1e2230;
+  --border:     #2b303b;
+  --border2:    #353c4a;
+  --text:       #f4f5f7;
+  --text-dim:   #9aa3b2;
+  --text-faint: #5a6275;
+  --green:      #2dcd5f;
+  --amber:      #ff9600;
+  --red:        #eb2d2d;
+  --grey:       #5f646e;
+  --claude-blue: #5B6EE1;
+  --radius: 12px;
+}
+
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 40px 24px 100px;
+}
+
+/* ── Section ──────────────────────────────────────────────── */
+.section { max-width: 920px; margin: 0 auto 64px; }
+.section-title {
+  font-size: 11px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 28px;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-title::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+hr { border: none; border-top: 1px solid var(--border); margin: 48px auto; max-width: 920px; }
+
+/* ── Demo desktop ─────────────────────────────────────────── */
+.demo-desktop {
+  background: #13161f;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  min-height: 540px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 32px 28px;
+}
+
+/* Fake desktop wallpaper grid */
+.desktop-bg {
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle at 30% 40%, rgba(91,110,225,.04) 0%, transparent 50%),
+    radial-gradient(circle at 70% 70%, rgba(45,205,95,.03) 0%, transparent 40%);
+  pointer-events: none;
+}
+.desktop-taskbar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 44px;
+  background: rgba(10,12,18,.8);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255,255,255,.05);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 10px;
+}
+.taskbar-icon {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  background: var(--surface2);
+  opacity: 0.5;
+}
+.desktop-icons {
+  position: absolute;
+  top: 20px; right: 24px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.desktop-icon {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  opacity: 0.3;
+}
+.desktop-icon-box {
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+.desktop-icon-label { font-size: 8px; color: var(--text-dim); text-align: center; }
+
+/* ── HUD anchor ───────────────────────────────────────────── */
+.hud-anchor {
+  position: relative;
+  display: inline-block;
+  z-index: 10;
+  /* sit just above the taskbar */
+  margin-bottom: 48px;
+}
+
+/* ── HUD widget ───────────────────────────────────────────── */
+.hud-widget {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px 18px;
+  width: 248px;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  transition: border-color .2s, box-shadow .2s;
+  user-select: none;
+}
+.hud-widget:hover, .hud-widget.pinned {
+  border-color: rgba(91,110,225,.45);
+  box-shadow: 0 0 0 1px rgba(91,110,225,.15), 0 4px 24px rgba(0,0,0,.4);
+}
+.hud-widget::before {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255,255,255,.025) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.hud-dot { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; position: relative; }
+.hud-dot::after {
+  content: ""; position: absolute; inset: -5px;
+  border-radius: 50%; opacity: 0;
+  transition: opacity .3s;
+}
+.hud-widget:hover .hud-dot::after { opacity: .4; }
+
+.hud-dot.green { background: var(--green); box-shadow: 0 0 10px var(--green); }
+.hud-dot.green::after { background: var(--green); }
+.hud-dot.amber { background: var(--amber); animation: pulse-amber 1.4s ease-in-out infinite; }
+.hud-dot.amber::after { background: var(--amber); }
+.hud-dot.red   { background: var(--red); animation: pulse-red .85s ease-in-out infinite; }
+.hud-dot.red::after { background: var(--red); }
+.hud-dot.grey  { background: var(--grey); }
+
+.hud-text { flex: 1; min-width: 0; }
+.hud-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.hud-detail { font-size: 10px; color: var(--text-dim); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Expand hint on the right */
+.hud-hint {
+  font-size: 9px; color: var(--text-faint);
+  flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.hud-widget:hover .hud-hint { opacity: 1; }
+.hud-hint-arrow { font-size: 12px; }
+
+/* ── Office popup ─────────────────────────────────────────── */
+.office-popup {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: -8px;
+  width: 500px;
+  background: #0e1118;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 -8px 48px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.025);
+  overflow: hidden;
+  z-index: 100;
+  /* show/hide transition */
+  opacity: 0;
+  transform: translateY(10px) scale(0.96);
+  pointer-events: none;
+  transition: opacity .22s cubic-bezier(.2,.8,.4,1), transform .22s cubic-bezier(.2,.8,.4,1);
+  transform-origin: bottom left;
+}
+.office-popup.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+/* caret arrow */
+.office-popup::after {
+  content: "";
+  position: absolute;
+  bottom: -7px; left: 30px;
+  width: 14px; height: 14px;
+  background: #0e1118;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+
+/* popup header */
+.popup-header {
+  display: flex; align-items: center;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+}
+.popup-header-icon { font-size: 18px; line-height: 1; }
+.popup-header-title { font-size: 13px; font-weight: 700; flex: 1; }
+.popup-header-sub { font-size: 9px; color: var(--text-faint); font-weight: 500; margin-top: 1px; }
+.session-badge {
+  font-size: 10px; font-weight: 700;
+  padding: 3px 9px; border-radius: 20px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text-dim); letter-spacing: .04em;
+}
+
+/* popup status strip */
+.popup-status {
+  padding: 7px 16px;
+  font-size: 10px; color: var(--text-faint);
+  border-bottom: 1px solid rgba(43,48,59,.6);
+  display: flex; align-items: center; gap: 6px;
+}
+.popup-status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Office floor ─────────────────────────────────────────── */
+.office-floor {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.office-floor::-webkit-scrollbar { width: 4px; }
+.office-floor::-webkit-scrollbar-track { background: transparent; }
+.office-floor::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+/* ── Cubicle ─────────────────────────────────────────────── */
+.cubicle {
+  border-radius: 12px;
+  overflow: visible;
+  border: 1px solid var(--border);
+  background: #0b0d14;
+  position: relative;
+  transition: border-color .2s, transform .18s;
+  cursor: default;
+}
+.cubicle:hover { transform: translateY(-3px); }
+
+.cubicle.s-idle       { border-color: rgba(45,205,95,.3); }
+.cubicle.s-busy       { border-color: rgba(255,150,0,.35); }
+.cubicle.s-permission { border-color: rgba(235,45,45,.4); }
+.cubicle.s-none       { border-color: var(--border); opacity: .7; }
+
+/* Backdrop / back wall */
+.cubicle-back {
+  height: 80px;
+  border-radius: 11px 11px 0 0;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 4px;
+}
+.cubicle.s-idle       .cubicle-back { background: linear-gradient(160deg, #061810 0%, #0a1f14 100%); }
+.cubicle.s-busy       .cubicle-back { background: linear-gradient(160deg, #1a0e00 0%, #1f1400 100%); }
+.cubicle.s-permission .cubicle-back { background: linear-gradient(160deg, #1f0808 0%, #180606 100%); }
+.cubicle.s-none       .cubicle-back { background: linear-gradient(160deg, #0c0e16 0%, #0f1118 100%); }
+
+/* Ambient glow on back wall */
+.cubicle.s-idle       .cubicle-back::before { content:""; position:absolute; inset:0; background: radial-gradient(ellipse at 50% 100%, rgba(45,205,95,.08) 0%, transparent 70%); }
+.cubicle.s-busy       .cubicle-back::before { content:""; position:absolute; inset:0; background: radial-gradient(ellipse at 50% 100%, rgba(255,150,0,.1) 0%, transparent 70%); }
+.cubicle.s-permission .cubicle-back::before { content:""; position:absolute; inset:0; background: radial-gradient(ellipse at 50% 100%, rgba(235,45,45,.12) 0%, transparent 70%); animation: perm-wall-flash .85s ease-in-out infinite; }
+
+@keyframes perm-wall-flash {
+  0%,100% { opacity: 1; } 50% { opacity: .4; }
+}
+
+/* Little window decoration top-right */
+.cubicle-window {
+  position: absolute; top: 8px; right: 8px;
+  width: 20px; height: 16px;
+  border-radius: 3px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 1.5px; padding: 2px;
+  border: 1.5px solid;
+  opacity: .2;
+}
+.cubicle.s-idle       .cubicle-window { border-color: var(--green); }
+.cubicle.s-busy       .cubicle-window { border-color: var(--amber); }
+.cubicle.s-permission .cubicle-window { border-color: var(--red); }
+.cubicle.s-none       .cubicle-window { border-color: var(--grey); }
+.cubicle-window-pane { border-radius: 1px; background: currentColor; opacity: .5; }
+
+/* Plant in corner */
+.cubicle-plant {
+  position: absolute; bottom: 2px; left: 5px;
+  font-size: 14px; line-height: 1;
+}
+
+/* ── Claude robot SVG ─────────────────────────────────────── */
+.robot-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+}
+.claude-robot { width: 44px; height: 52px; }
+
+/* Idle: gentle bob */
+.s-idle .robot-body-group { animation: gentle-bob 2.8s ease-in-out infinite; }
+
+/* Busy: rapid arm wiggle */
+.s-busy .robot-arms       { animation: type-arms .25s ease-in-out infinite alternate; }
+.s-busy .robot-body-group { animation: gentle-bob 1.2s ease-in-out infinite; }
+
+/* Permission: full robot pulse */
+.s-permission .robot-body-group { animation: perm-bob .85s ease-in-out infinite; }
+
+/* None: nothing */
+.s-none .robot-body-group { opacity: .4; }
+
+@keyframes gentle-bob {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-2.5px); }
+}
+@keyframes type-arms {
+  0%   { transform: rotate(-8deg) translateY(1px); }
+  100% { transform: rotate(8deg) translateY(-1px); }
+}
+@keyframes perm-bob {
+  0%,100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-3px) scale(1.02); }
+}
+@keyframes antenna-glow-green  { 0%,100%{filter:drop-shadow(0 0 3px #2dcd5f)}  50%{filter:drop-shadow(0 0 7px #2dcd5f)} }
+@keyframes antenna-glow-amber  { 0%,100%{filter:drop-shadow(0 0 3px #ff9600)}  50%{filter:drop-shadow(0 0 8px #ff9600)} }
+@keyframes antenna-glow-red    { 0%,100%{filter:drop-shadow(0 0 3px #eb2d2d)}  50%{filter:drop-shadow(0 0 9px #eb2d2d)} }
+@keyframes antenna-glow-grey   { 0%,100%{filter:drop-shadow(0 0 1px #5f646e)}  50%{filter:drop-shadow(0 0 3px #5f646e)} }
+
+.s-idle       .robot-antenna { animation: antenna-glow-green  2s ease-in-out infinite; }
+.s-busy       .robot-antenna { animation: antenna-glow-amber  1.2s ease-in-out infinite; }
+.s-permission .robot-antenna { animation: antenna-glow-red    .85s ease-in-out infinite; }
+.s-none       .robot-antenna { animation: antenna-glow-grey   3s ease-in-out infinite; }
+
+/* Eye blink */
+@keyframes blink {
+  0%,92%,100% { transform: scaleY(1); transform-origin: center; }
+  96%          { transform: scaleY(.08); transform-origin: center; }
+}
+.robot-eye { animation: blink 4.5s ease-in-out infinite; }
+.robot-eye:last-of-type { animation-delay: .07s; }
+
+/* ── Chat bubble ──────────────────────────────────────────── */
+.chat-bubble {
+  position: absolute;
+  top: -34px;
+  left: 50%;
+  transform: translateX(-20%);
+  background: white;
+  color: #111;
+  border-radius: 10px 10px 10px 2px;
+  padding: 4px 8px;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 3px 12px rgba(0,0,0,.4);
+  z-index: 10;
+}
+.chat-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -5px; left: 7px;
+  border: 5px solid transparent;
+  border-top: 5px solid white;
+  border-bottom: 0;
+  border-left: 0;
+}
+.chat-bubble.t-idle       { background: #b8f5cf; color: #0a2b18; }
+.chat-bubble.t-idle::after { border-top-color: #b8f5cf; }
+.chat-bubble.t-tool       { background: #ffe4a0; color: #2b1800; }
+.chat-bubble.t-tool::after { border-top-color: #ffe4a0; }
+.chat-bubble.t-perm       { background: #ffb8b8; color: #2b0000; }
+.chat-bubble.t-perm::after { border-top-color: #ffb8b8; }
+.chat-bubble.t-empty      { background: #d0d4e0; color: #1a1d28; }
+.chat-bubble.t-empty::after { border-top-color: #d0d4e0; }
+
+/* ── Desk scene ───────────────────────────────────────────── */
+.desk-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  padding: 4px 8px 6px;
+  background: #0b0d14;
+}
+
+/* Monitor */
+.monitor {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.monitor-screen {
+  width: 30px; height: 22px;
+  border-radius: 3px;
+  border: 1.5px solid #2a2e3d;
+  background: #060810;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 2px 3px;
+}
+.s-idle       .monitor-screen { border-color: rgba(45,205,95,.25); background: #030e07; }
+.s-busy       .monitor-screen { border-color: rgba(255,150,0,.25);  background: #0c0700; }
+.s-permission .monitor-screen { border-color: rgba(235,45,45,.3);   background: #0c0303; }
+
+.code-line { height: 2px; border-radius: 1px; margin-bottom: 1px; }
+.s-idle       .code-line { background: rgba(45,205,95,.45); }
+.s-busy       .code-line { background: rgba(255,150,0,.5); animation: code-flicker .4s ease-in-out infinite alternate; }
+.s-permission .code-line { background: rgba(235,45,45,.5); }
+.s-none       .code-line { background: rgba(95,100,110,.3); }
+
+@keyframes code-flicker {
+  0%   { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+.monitor-stand { width: 5px; height: 6px; background: #222630; margin: 0 auto; }
+.monitor-base  { width: 16px; height: 2.5px; background: #222630; border-radius: 1px; margin: 0 auto; }
+
+/* Coffee cup (idle only) */
+.coffee-cup {
+  position: absolute;
+  right: 10px;
+  bottom: 7px;
+  font-size: 11px;
+  line-height: 1;
+  opacity: .7;
+}
+.s-busy .coffee-cup, .s-permission .coffee-cup, .s-none .coffee-cup { display: none; }
+
+/* Alert exclamation (permission only) */
+.alert-sign {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  font-size: 18px;
+  animation: alert-pop .85s ease-in-out infinite;
+  z-index: 3;
+  display: none;
+}
+.s-permission .alert-sign { display: block; }
+
+@keyframes alert-pop {
+  0%,100% { transform: translateX(-50%) scale(1); }
+  50%      { transform: translateX(-50%) scale(1.25); }
+}
+
+/* ── Name plate ───────────────────────────────────────────── */
+.nameplate {
+  padding: 5px 8px 6px;
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 5px;
+  border-top: 1px solid rgba(255,255,255,.04);
+}
+.nameplate-name {
+  font-size: 9px; font-weight: 700;
+  color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 84px;
+}
+.nameplate-pill {
+  font-size: 8px; font-weight: 700;
+  padding: 1px 6px; border-radius: 10px;
+  letter-spacing: .04em; flex-shrink: 0;
+}
+.s-idle       .nameplate-pill { background: rgba(45,205,95,.15);  color: var(--green); }
+.s-busy       .nameplate-pill { background: rgba(255,150,0,.15);  color: var(--amber); }
+.s-permission .nameplate-pill { background: rgba(235,45,45,.18);  color: var(--red); }
+.s-none       .nameplate-pill { background: rgba(95,100,110,.12); color: var(--grey); }
+
+/* ── Popup footer ─────────────────────────────────────────── */
+.popup-footer {
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center;
+  justify-content: space-between;
+}
+.popup-footer-hint { font-size: 9px; color: var(--text-faint); }
+.popup-footer-age  { font-size: 9px; color: var(--text-faint); }
+
+/* ── Demo controls ────────────────────────────────────────── */
+.demo-controls {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.demo-btn {
+  padding: 7px 15px;
+  border-radius: 8px;
+  border: 1px solid var(--border2);
+  background: var(--surface2);
+  color: var(--text-dim);
+  font-size: 11px; font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  font-family: inherit; letter-spacing: .04em;
+}
+.demo-btn:hover { background: #252b38; color: var(--text); }
+.demo-btn.act-green  { background: rgba(45,205,95,.12);  border-color: rgba(45,205,95,.4);  color: var(--green); }
+.demo-btn.act-amber  { background: rgba(255,150,0,.12);  border-color: rgba(255,150,0,.4);  color: var(--amber); }
+.demo-btn.act-red    { background: rgba(235,45,45,.12);  border-color: rgba(235,45,45,.4);  color: var(--red); }
+.demo-btn.act-blue   { background: rgba(91,110,225,.12); border-color: rgba(91,110,225,.4); color: #8B9FF0; }
+
+/* ── Dot animations ───────────────────────────────────────── */
+@keyframes pulse-amber { 0%,100%{box-shadow:0 0 6px var(--amber)} 50%{box-shadow:0 0 20px var(--amber);opacity:.85} }
+@keyframes pulse-red   { 0%,100%{box-shadow:0 0 6px var(--red)}   50%{box-shadow:0 0 22px var(--red)} }
+
+/* ── Design spec cards ────────────────────────────────────── */
+.spec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media(max-width:620px){ .spec-grid { grid-template-columns: 1fr; } }
+.spec-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px 20px;
+}
+.spec-card-title {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-faint); margin-bottom: 12px;
+}
+.spec-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin-bottom: 10px; font-size: 11px; color: var(--text-dim); line-height: 1.6;
+}
+.spec-row:last-child { margin-bottom: 0; }
+.spec-icon { font-size: 14px; flex-shrink: 0; line-height: 1.5; }
+
+/* ── State legend row ─────────────────────────────────────── */
+.legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+.legend-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 12px; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: 11px;
+}
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══ SECTION 1 — INTERACTIVE HUD + POPUP DEMO ═══════════ -->
+<div class="section">
+  <div class="section-title">Interactive demo — hover or click the HUD widget</div>
+
+  <div class="demo-controls" id="ctrl">
+    <button class="demo-btn act-green" onclick="setScenario('idle')">All idle</button>
+    <button class="demo-btn"           onclick="setScenario('busy')">Working</button>
+    <button class="demo-btn"           onclick="setScenario('perm')">Needs approval</button>
+    <button class="demo-btn"           onclick="setScenario('mixed')">Mixed (3 sessions)</button>
+    <button class="demo-btn"           onclick="setScenario('none')">No sessions</button>
+  </div>
+
+  <!-- Simulated desktop -->
+  <div class="demo-desktop">
+    <div class="desktop-bg"></div>
+
+    <!-- fake taskbar -->
+    <div class="desktop-taskbar">
+      <div class="taskbar-icon"></div>
+      <div class="taskbar-icon"></div>
+      <div class="taskbar-icon"></div>
+    </div>
+
+    <!-- fake desktop icons -->
+    <div class="desktop-icons">
+      <div class="desktop-icon"><div class="desktop-icon-box"></div><div class="desktop-icon-label">VS Code</div></div>
+      <div class="desktop-icon"><div class="desktop-icon-box"></div><div class="desktop-icon-label">Terminal</div></div>
+      <div class="desktop-icon"><div class="desktop-icon-box"></div><div class="desktop-icon-label">Browser</div></div>
+    </div>
+
+    <!-- The HUD + popup anchor -->
+    <div class="hud-anchor" id="hud-anchor">
+
+      <!-- ── Office popup ── -->
+      <div class="office-popup" id="office-popup">
+
+        <div class="popup-header">
+          <div class="popup-header-icon">🏢</div>
+          <div style="flex:1">
+            <div class="popup-header-title">Claude's Digital Office</div>
+            <div class="popup-header-sub" id="popup-sub">All bots are waiting for you</div>
+          </div>
+          <span class="session-badge" id="popup-badge">3 sessions</span>
+        </div>
+
+        <div class="popup-status" id="popup-status">
+          <div class="popup-status-dot" style="background:var(--green);" id="popup-status-dot"></div>
+          <span id="popup-status-text">All 3 sessions idle · updated just now</span>
+        </div>
+
+        <div class="office-floor" id="office-floor">
+          <!-- Cubicles injected by JS -->
+        </div>
+
+        <div class="popup-footer">
+          <span class="popup-footer-hint">Hover to keep open &nbsp;·&nbsp; click to pin</span>
+          <span class="popup-footer-age" id="popup-age">just now</span>
+        </div>
+      </div>
+      <!-- /office-popup -->
+
+      <!-- ── The HUD widget ── -->
+      <div class="hud-widget" id="hud-widget">
+        <div class="hud-dot green" id="hud-dot"></div>
+        <div class="hud-text">
+          <div class="hud-title"  id="hud-title">Waiting for you</div>
+          <div class="hud-detail" id="hud-detail">3 sessions · idle</div>
+        </div>
+        <div class="hud-hint">
+          <div class="hud-hint-arrow">▲</div>
+          <div>office</div>
+        </div>
+      </div>
+
+    </div><!-- /hud-anchor -->
+  </div><!-- /demo-desktop -->
+</div>
+
+<hr>
+
+<!-- ═══ SECTION 2 — DESIGN SPEC ════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Design spec — what each element represents</div>
+
+  <div class="spec-grid">
+    <div class="spec-card">
+      <div class="spec-card-title">Trigger</div>
+      <div class="spec-row"><span class="spec-icon">🖱️</span> <span><b>Hover</b> the traffic-light overlay to peek at the office (auto-closes when mouse leaves)</span></div>
+      <div class="spec-row"><span class="spec-icon">🖱️</span> <span><b>Click</b> to pin it open — click again or press Esc to dismiss</span></div>
+      <div class="spec-row"><span class="spec-icon">📌</span> <span>A pinned popup stays on top even while you click other windows</span></div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">Office floor layout</div>
+      <div class="spec-row"><span class="spec-icon">🏢</span> <span>One cubicle per live Claude session; scrolls if > 6</span></div>
+      <div class="spec-row"><span class="spec-icon">📂</span> <span>Cubicle title = the project folder name (cwd basename)</span></div>
+      <div class="spec-row"><span class="spec-icon">🌱</span> <span>Tiny decor (plant, window, coffee) makes each cell feel alive</span></div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">Claude robot states</div>
+      <div class="spec-row"><span class="spec-icon">🟢</span> <span><b>Idle</b> — gently bobbing, coffee in hand, green glow; bubble: "Ready!"</span></div>
+      <div class="spec-row"><span class="spec-icon">🟡</span> <span><b>Busy</b> — arms typing rapidly, amber glow; bubble shows the active tool</span></div>
+      <div class="spec-row"><span class="spec-icon">🔴</span> <span><b>Needs approval</b> — pulsing, exclamation sign, red glow; bubble: "Please approve!"</span></div>
+      <div class="spec-row"><span class="spec-icon">⚫</span> <span><b>None / vacant</b> — dimmed robot, grey desk, empty bubble</span></div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">Data shown per session</div>
+      <div class="spec-row"><span class="spec-icon">💬</span> <span>Chat bubble: current tool name (e.g. "Bash: npm test") or idle message</span></div>
+      <div class="spec-row"><span class="spec-icon">🖥️</span> <span>Mini monitor: colour-coded code lines showing activity</span></div>
+      <div class="spec-row"><span class="spec-icon">🏷️</span> <span>Name plate: project name + status pill (Idle / Busy / Needs approval)</span></div>
+      <div class="spec-row"><span class="spec-icon">📡</span> <span>Antenna glow colour matches state; pulses when busy/permission</span></div>
+    </div>
+  </div>
+
+  <!-- State legend -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green);box-shadow:0 0 6px var(--green)"></div> Idle — waiting for input</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div> Busy — running a tool / thinking</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--red);box-shadow:0 0 6px var(--red)"></div> Needs your approval</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--grey)"></div> No active session</div>
+  </div>
+</div>
+
+<!-- ═══ SCRIPT ══════════════════════════════════════════════ -->
+<script>
+/* ── Robot SVG builder ─────────────────────────────────── */
+function robotSVG(stateClass) {
+  const antennaColors = {
+    's-idle': '#2dcd5f', 's-busy': '#ff9600', 's-permission': '#eb2d2d', 's-none': '#5f646e'
+  };
+  const eyeColors = {
+    's-idle': '#1a3d2b', 's-busy': '#3d2800', 's-permission': '#3d0808', 's-none': '#1a1a28'
+  };
+  const acol = antennaColors[stateClass] || '#5f646e';
+  const ecol = eyeColors[stateClass] || '#1a1a28';
+
+  return `<svg class="claude-robot" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
+    <g class="robot-body-group">
+      <!-- Antenna stem -->
+      <line x1="22" y1="7" x2="22" y2="1" stroke="#4a5bd0" stroke-width="2.2" stroke-linecap="round"/>
+      <!-- Antenna ball -->
+      <circle class="robot-antenna" cx="22" cy="1" r="3.2" fill="${acol}"/>
+
+      <!-- Head -->
+      <ellipse cx="22" cy="19" rx="12.5" ry="12" fill="#4a5bd0"/>
+      <!-- Head sheen -->
+      <ellipse cx="18" cy="13" rx="5" ry="3.5" fill="white" opacity="0.07"/>
+
+      <!-- Left eye white -->
+      <ellipse class="robot-eye" cx="16.5" cy="18" rx="4" ry="4.5" fill="white"/>
+      <!-- Left pupil -->
+      <circle cx="17.2" cy="18.8" r="2.2" fill="${ecol}"/>
+      <!-- Left highlight -->
+      <circle cx="18" cy="17.2" r=".9" fill="white"/>
+
+      <!-- Right eye white -->
+      <ellipse class="robot-eye" cx="27.5" cy="18" rx="4" ry="4.5" fill="white"/>
+      <!-- Right pupil -->
+      <circle cx="28.2" cy="18.8" r="2.2" fill="${ecol}"/>
+      <!-- Right highlight -->
+      <circle cx="29" cy="17.2" r=".9" fill="white"/>
+
+      <!-- Mouth -->
+      ${stateClass === 's-idle' ?
+        `<path d="M 16 26 Q 22 30.5 28 26" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round"/>` :
+        stateClass === 's-busy' ?
+        `<ellipse cx="22" cy="27" rx="4" ry="2.5" fill="white" opacity="0.8"/>` :
+        stateClass === 's-permission' ?
+        `<path d="M 17 27 L 27 27" stroke="white" stroke-width="1.6" stroke-linecap="round"/>` :
+        `<path d="M 17 27 Q 22 25 27 27" fill="none" stroke="white" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/>`
+      }
+
+      <!-- Body -->
+      <rect x="12" y="30" width="20" height="18" rx="7" fill="#4a5bd0"/>
+      <!-- C badge on body -->
+      <text x="22" y="43" text-anchor="middle" font-size="9" fill="white" font-weight="900"
+            font-family="system-ui,sans-serif" opacity="0.75">C</text>
+
+      <!-- Arms -->
+      <g class="robot-arms">
+        <rect x="2"  y="31" width="10" height="6" rx="3" fill="#4a5bd0"/>
+        <rect x="32" y="31" width="10" height="6" rx="3" fill="#4a5bd0"/>
+      </g>
+
+      <!-- Legs -->
+      <rect x="14" y="46" width="7" height="5" rx="2.5" fill="#3a4abf"/>
+      <rect x="23" y="46" width="7" height="5" rx="2.5" fill="#3a4abf"/>
+    </g>
+  </svg>`;
+}
+
+/* ── Chat bubble text ──────────────────────────────────── */
+function bubbleContent(session) {
+  if (session.state === 'idle')
+    return { cls: 't-idle', text: session.idle_msg || '☕ Ready!' };
+  if (session.state === 'busy')
+    return { cls: 't-tool', text: session.tool ? `⚙ ${session.tool}` : '💭 Thinking…' };
+  if (session.state === 'permission')
+    return { cls: 't-perm', text: '✋ Please approve!' };
+  return { cls: 't-empty', text: 'Vacant' };
+}
+
+/* ── Build one cubicle ─────────────────────────────────── */
+function buildCubicle(session) {
+  const sc = {
+    idle: 's-idle', busy: 's-busy', permission: 's-permission', none: 's-none'
+  }[session.state] || 's-none';
+
+  const pillLabel = {
+    idle: 'Idle', busy: 'Busy', permission: 'Approval!', none: 'Vacant'
+  }[session.state] || 'Vacant';
+
+  const bubble = bubbleContent(session);
+
+  // Code lines for monitor (3 lines, random widths for variety)
+  const lines = [85, 60, 75].map(w =>
+    `<div class="code-line" style="width:${w}%"></div>`
+  ).join('');
+
+  const monClass = {
+    idle: 'on-idle', busy: 'on-busy', permission: 'on-perm', none: ''
+  }[session.state] || '';
+
+  return `
+    <div class="cubicle ${sc}">
+      <!-- Back wall / sky -->
+      <div class="cubicle-back">
+        <!-- Window deco -->
+        <div class="cubicle-window">
+          <div class="cubicle-window-pane"></div>
+          <div class="cubicle-window-pane"></div>
+          <div class="cubicle-window-pane"></div>
+          <div class="cubicle-window-pane"></div>
+        </div>
+
+        ${session.state === 'permission' ? '<div class="alert-sign">🚨</div>' : ''}
+        ${session.state === 'idle' ? '<div class="cubicle-plant">🌿</div>' : ''}
+
+        <!-- Robot -->
+        <div class="robot-wrap">
+          <div class="chat-bubble ${bubble.cls}">${bubble.text}</div>
+          ${robotSVG(sc)}
+        </div>
+      </div>
+
+      <!-- Desk row -->
+      <div class="desk-row">
+        <div class="monitor">
+          <div class="monitor-screen ${monClass}">${lines}</div>
+          <div class="monitor-stand"></div>
+          <div class="monitor-base"></div>
+        </div>
+        ${session.state === 'idle' ? '<div class="coffee-cup">☕</div>' : ''}
+      </div>
+
+      <!-- Name plate -->
+      <div class="nameplate">
+        <div class="nameplate-name" title="${session.name}">${session.name}</div>
+        <div class="nameplate-pill">${pillLabel}</div>
+      </div>
+    </div>
+  `;
+}
+
+/* ── Scenarios ─────────────────────────────────────────── */
+const SCENARIOS = {
+  idle: {
+    dot: 'green', title: 'Waiting for you', detail: '3 sessions · all idle',
+    sub: 'All bots are chillin\' — ready for your next message',
+    statusColor: '#2dcd5f', statusText: 'All 3 sessions idle · updated just now',
+    badge: '3 sessions', btnClass: 'act-green',
+    sessions: [
+      { name: 'Claude-Status-HUD', state: 'idle', tool: '', idle_msg: '☕ Ready!' },
+      { name: 'my-react-app',      state: 'idle', tool: '', idle_msg: '🎮 Waiting!' },
+      { name: 'backend-api',       state: 'idle', tool: '', idle_msg: '✨ Idle~' },
+    ]
+  },
+  busy: {
+    dot: 'amber', title: 'Working…', detail: '2 sessions · busy',
+    sub: 'Bots are typing — grab a coffee ☕',
+    statusColor: '#ff9600', statusText: '2 of 3 sessions busy · tools running',
+    badge: '3 sessions', btnClass: 'act-amber',
+    sessions: [
+      { name: 'Claude-Status-HUD', state: 'busy', tool: 'Edit: hud_daemon.pyw', idle_msg: '' },
+      { name: 'my-react-app',      state: 'busy', tool: 'Bash: npm test',        idle_msg: '' },
+      { name: 'backend-api',       state: 'idle', tool: '', idle_msg: '✨ Idle~' },
+    ]
+  },
+  perm: {
+    dot: 'red', title: 'Needs your approval', detail: '1 session · waiting',
+    sub: 'A bot needs your OK before continuing!',
+    statusColor: '#eb2d2d', statusText: 'Approval required · Claude-Status-HUD waiting',
+    badge: '2 sessions', btnClass: 'act-red',
+    sessions: [
+      { name: 'Claude-Status-HUD', state: 'permission', tool: 'Write: start-hud.cmd', idle_msg: '' },
+      { name: 'my-react-app',      state: 'idle',       tool: '',                      idle_msg: '☕ Ready!' },
+    ]
+  },
+  mixed: {
+    dot: 'red', title: 'Needs approval + Working', detail: '3 sessions · mixed',
+    sub: 'Multiple bots active — 1 needs your attention!',
+    statusColor: '#eb2d2d', statusText: 'Approval needed · 1 busy · 1 idle',
+    badge: '3 sessions', btnClass: 'act-red',
+    sessions: [
+      { name: 'data-pipeline',     state: 'permission', tool: 'Bash: rm -rf dist/', idle_msg: '' },
+      { name: 'Claude-Status-HUD', state: 'busy',       tool: 'Write: daemon.pyw',  idle_msg: '' },
+      { name: 'frontend-redesign', state: 'idle',       tool: '',                   idle_msg: '🎨 Waiting!' },
+    ]
+  },
+  none: {
+    dot: 'grey', title: 'No sessions', detail: 'HUD running · no sessions',
+    sub: 'Office is empty — start Claude Code to see your bots!',
+    statusColor: '#5f646e', statusText: 'No active sessions',
+    badge: '0 sessions', btnClass: '',
+    sessions: []
+  },
+};
+
+/* ── Render ────────────────────────────────────────────── */
+function setScenario(key) {
+  const sc = SCENARIOS[key];
+
+  // HUD widget
+  document.getElementById('hud-dot').className    = `hud-dot ${sc.dot}`;
+  document.getElementById('hud-title').textContent  = sc.title;
+  document.getElementById('hud-detail').textContent = sc.detail;
+
+  // Popup content
+  document.getElementById('popup-sub').textContent         = sc.sub;
+  document.getElementById('popup-badge').textContent       = sc.badge;
+  document.getElementById('popup-status-dot').style.background = sc.statusColor;
+  document.getElementById('popup-status-text').textContent = sc.statusText;
+  document.getElementById('office-floor').innerHTML =
+    sc.sessions.length
+      ? sc.sessions.map(buildCubicle).join('')
+      : '<div style="grid-column:1/-1; padding:32px; text-align:center; font-size:12px; color:var(--text-faint);">🏢 Office is empty — no sessions running</div>';
+
+  // Demo buttons
+  document.querySelectorAll('#ctrl .demo-btn').forEach(b => {
+    b.className = 'demo-btn';
+  });
+  const keys = ['idle','busy','perm','mixed','none'];
+  const colors = ['act-green','act-amber','act-red','act-red',''];
+  const idx = keys.indexOf(key);
+  if (idx >= 0 && colors[idx])
+    document.querySelectorAll('#ctrl .demo-btn')[idx].className = `demo-btn ${colors[idx]}`;
+}
+
+/* ── Hover / click interaction ─────────────────────────── */
+let pinned = false;
+let hoverTimer;
+
+const widget  = document.getElementById('hud-widget');
+const popup   = document.getElementById('office-popup');
+const anchor  = document.getElementById('hud-anchor');
+
+function showPopup()  { popup.classList.add('visible'); }
+function hidePopup()  { if (!pinned) popup.classList.remove('visible'); }
+
+anchor.addEventListener('mouseenter', () => {
+  clearTimeout(hoverTimer);
+  showPopup();
+});
+anchor.addEventListener('mouseleave', () => {
+  hoverTimer = setTimeout(hidePopup, 280);
+});
+widget.addEventListener('click', (e) => {
+  e.stopPropagation();
+  pinned = !pinned;
+  if (pinned) {
+    showPopup();
+    widget.classList.add('pinned');
+  } else {
+    widget.classList.remove('pinned');
+    hidePopup();
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && pinned) {
+    pinned = false;
+    widget.classList.remove('pinned');
+    hidePopup();
+  }
+});
+
+/* ── Init ──────────────────────────────────────────────── */
+setScenario('idle');
+// Auto-open popup for first look
+setTimeout(() => { showPopup(); }, 600);
+setTimeout(() => { if (!pinned) hidePopup(); }, 3500);
+
+/* ── Live age counter ──────────────────────────────────── */
+let ageSeconds = 0;
+setInterval(() => {
+  ageSeconds++;
+  const el = document.getElementById('popup-age');
+  if (el) el.textContent = ageSeconds < 60 ? `${ageSeconds}s ago` : `${Math.floor(ageSeconds/60)}m ago`;
+}, 1000);
+</script>
+</body>
+</html>

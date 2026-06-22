@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Traffic Light — Multi-Device HUD Mockup</title>
+<style>
+  /* ── Reset & base ─────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:         #0e1117;
+    --surface:    #171a21;
+    --surface2:   #1e2230;
+    --border:     #2b303b;
+    --border2:    #353c4a;
+    --text:       #f4f5f7;
+    --text-dim:   #9aa3b2;
+    --text-faint: #5a6275;
+    --green:      #2dcd5f;
+    --green-glow: rgba(45,205,95,0.18);
+    --amber:      #ff9600;
+    --amber-glow: rgba(255,150,0,0.18);
+    --red:        #eb2d2d;
+    --red-glow:   rgba(235,45,45,0.18);
+    --grey:       #5f646e;
+    --grey-glow:  rgba(95,100,110,0.12);
+    --radius:     12px;
+  }
+
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 40px 24px 80px;
+  }
+
+  /* ── Layout ──────────────────────────────────────────────── */
+  .page-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .page-title::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 860px;
+    margin: 0 auto 40px;
+  }
+  @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }
+
+  .full-row {
+    max-width: 860px;
+    margin: 0 auto 40px;
+  }
+
+  /* ── Card ────────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    position: relative;
+  }
+  .card-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 16px;
+  }
+
+  /* ── Traffic-light dot ───────────────────────────────────── */
+  .dot {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    position: relative;
+    transition: background .3s;
+  }
+  .dot::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    opacity: .45;
+    transition: background .3s;
+  }
+  .dot.green  { background: var(--green); box-shadow: 0 0 10px var(--green); }
+  .dot.green::after  { background: var(--green-glow); }
+  .dot.amber  { background: var(--amber); }
+  .dot.amber::after  { background: var(--amber-glow); }
+  .dot.red    { background: var(--red); box-shadow: 0 0 10px var(--red); }
+  .dot.red::after    { background: var(--red-glow); }
+  .dot.grey   { background: var(--grey); }
+  .dot.grey::after   { background: var(--grey-glow); }
+
+  /* ── Floating HUD overlay replica ───────────────────────── */
+  .hud-overlay {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 12px 18px;
+    width: 100%;
+    max-width: 280px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hud-overlay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255,255,255,.025) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .hud-text { flex: 1; min-width: 0; }
+  .hud-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .hud-detail { font-size: 10px; color: var(--text-dim); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── Device card ─────────────────────────────────────────── */
+  .device-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .device-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+  .device-icon { font-size: 18px; line-height: 1; }
+  .device-name { font-size: 13px; font-weight: 700; }
+  .device-conn {
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: .05em;
+  }
+  .device-conn.local  { background: rgba(45,205,95,.12); color: var(--green); border: 1px solid rgba(45,205,95,.2); }
+  .device-conn.remote { background: rgba(255,150,0,.10); color: var(--amber); border: 1px solid rgba(255,150,0,.2); }
+  .device-conn.off    { background: rgba(95,100,110,.12); color: var(--grey); border: 1px solid rgba(95,100,110,.2); }
+
+  .session-list { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .session-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: rgba(0,0,0,.18);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .session-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .session-dot.green { background: var(--green); box-shadow: 0 0 5px var(--green); }
+  .session-dot.amber { background: var(--amber); }
+  .session-dot.red   { background: var(--red);   box-shadow: 0 0 5px var(--red); }
+  .session-dot.grey  { background: var(--grey); }
+  .session-info { flex: 1; min-width: 0; }
+  .session-name { font-size: 11px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .session-state { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+  .session-ago { font-size: 10px; color: var(--text-faint); flex-shrink: 0; }
+
+  .no-sessions {
+    padding: 16px 10px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  /* ── Aggregated banner ───────────────────────────────────── */
+  .agg-banner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    position: relative;
+    overflow: hidden;
+  }
+  .agg-banner::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 3px 0 0 3px;
+    background: var(--green);
+  }
+  .agg-banner.amber::before { background: var(--amber); }
+  .agg-banner.red::before   { background: var(--red); }
+  .agg-banner.grey::before  { background: var(--grey); }
+
+  .agg-dot { width: 30px; height: 30px; }
+  .agg-info { flex: 1; }
+  .agg-title { font-size: 15px; font-weight: 700; }
+  .agg-sub   { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+  .agg-devices { font-size: 10px; color: var(--text-faint); margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .agg-tag {
+    padding: 2px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+
+  /* ── Connection diagram ──────────────────────────────────── */
+  .conn-diagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 28px 20px;
+  }
+  .conn-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 110px;
+  }
+  .conn-node-icon {
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    position: relative;
+  }
+  .conn-node-icon .badge {
+    position: absolute;
+    bottom: -4px; right: -4px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid var(--surface);
+  }
+  .conn-node-label { font-size: 11px; font-weight: 700; text-align: center; }
+  .conn-node-sub   { font-size: 9px; color: var(--text-faint); text-align: center; }
+
+  .conn-line {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px;
+  }
+  .conn-line-bar {
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--green), var(--amber));
+    border-radius: 2px;
+    position: relative;
+    overflow: visible;
+  }
+  .conn-line-bar::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 30%;
+    transform: translateY(-50%);
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--amber);
+    animation: travel 2s linear infinite;
+  }
+  @keyframes travel {
+    0%   { left: 0%; opacity: 1; }
+    100% { left: 100%; opacity: 0; }
+  }
+  .conn-line-label { font-size: 9px; color: var(--text-faint); letter-spacing: .08em; text-transform: uppercase; }
+
+  /* ── State demo controls ─────────────────────────────────── */
+  .demo-controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .demo-btn {
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text-dim);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: inherit;
+    letter-spacing: .04em;
+  }
+  .demo-btn:hover { border-color: var(--border2); background: #252b38; color: var(--text); }
+  .demo-btn.active-green { background: rgba(45,205,95,.12); border-color: rgba(45,205,95,.4); color: var(--green); }
+  .demo-btn.active-amber { background: rgba(255,150,0,.12); border-color: rgba(255,150,0,.4); color: var(--amber); }
+  .demo-btn.active-red   { background: rgba(235,45,45,.12); border-color: rgba(235,45,45,.4); color: var(--red); }
+
+  /* ── Animation classes ───────────────────────────────────── */
+  @keyframes pulse-amber {
+    0%,100% { opacity: 1; box-shadow: 0 0 6px var(--amber); }
+    50%      { opacity: .5; box-shadow: 0 0 18px var(--amber); }
+  }
+  @keyframes pulse-red {
+    0%,100% { box-shadow: 0 0 6px var(--red); }
+    50%      { box-shadow: 0 0 20px var(--red); }
+  }
+  .dot.amber { animation: pulse-amber 1.4s ease-in-out infinite; }
+  .dot.red   { animation: pulse-red   2s   ease-in-out infinite; }
+  .session-dot.amber { animation: pulse-amber 1.4s ease-in-out infinite; }
+  .session-dot.red   { animation: pulse-red   2s   ease-in-out infinite; }
+
+  /* ── Misc ────────────────────────────────────────────────── */
+  .section-gap { height: 10px; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 36px 0; max-width: 860px; margin-left: auto; margin-right: auto; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 1 — FLOATING HUD OVERLAY  (current single-device)
+═══════════════════════════════════════════════════════════════ -->
+<div class="full-row">
+  <div class="page-title">Current — Single-device floating overlay</div>
+
+  <div class="demo-controls" id="single-controls">
+    <button class="demo-btn" onclick="setSingle('grey')">● No sessions</button>
+    <button class="demo-btn active-green" onclick="setSingle('green')">● Idle</button>
+    <button class="demo-btn" onclick="setSingle('amber')">● Working</button>
+    <button class="demo-btn" onclick="setSingle('red')">● Needs approval</button>
+  </div>
+
+  <!-- The floating overlay replica -->
+  <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;">
+    <div class="hud-overlay" id="hud-single">
+      <div class="dot green" id="hud-dot"></div>
+      <div class="hud-text">
+        <div class="hud-title" id="hud-title">Waiting for you</div>
+        <div class="hud-detail" id="hud-detail">1 session  ·  Claude-Status-HUD</div>
+      </div>
+    </div>
+
+    <div style="flex:1; min-width:220px;">
+      <div style="font-size:11px; color:var(--text-faint); line-height:1.8;">
+        This is the current floating overlay — always-on-top, draggable, 232 × 70 px.<br>
+        Right-click for monitor snap, keyboard toggle, startup.
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 2 — MULTI-DEVICE CONNECTION DIAGRAM
+═══════════════════════════════════════════════════════════════ -->
+<div class="full-row">
+  <div class="page-title">Proposed — Multi-device architecture</div>
+
+  <div class="card">
+    <div class="card-label">How the devices connect</div>
+    <div class="conn-diagram">
+
+      <!-- Mac node -->
+      <div class="conn-node">
+        <div class="conn-node-icon">
+          💻
+          <div class="badge" style="background:var(--amber);"></div>
+        </div>
+        <div class="conn-node-label">MacBook</div>
+        <div class="conn-node-sub">Your Mac<br>Claude Code sessions</div>
+      </div>
+
+      <!-- Line Mac → Windows -->
+      <div class="conn-line">
+        <div class="conn-line-bar"></div>
+        <div class="conn-line-label">WiFi / BT · TCP</div>
+      </div>
+
+      <!-- Windows HUD node -->
+      <div class="conn-node">
+        <div class="conn-node-icon" style="background:rgba(45,205,95,.08); border-color:rgba(45,205,95,.25);">
+          🖥️
+          <div class="badge" style="background:var(--green);"></div>
+        </div>
+        <div class="conn-node-label">Windows PC</div>
+        <div class="conn-node-sub">HUD Dashboard<br>+ local sessions</div>
+      </div>
+
+    </div>
+
+    <div style="padding:0 20px 16px; display:flex; gap:24px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:180px;">
+        <div style="font-size:10px; font-weight:700; color:var(--text-faint); letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px;">Mac sends</div>
+        <div style="font-size:11px; color:var(--text-dim); line-height:1.8;">
+          A tiny hook script on the Mac POSTs each Claude event to the Windows HUD's receiver port over your local network (or Bluetooth PAN).
+        </div>
+      </div>
+      <div style="flex:1; min-width:180px;">
+        <div style="font-size:10px; font-weight:700; color:var(--text-faint); letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px;">Windows receives</div>
+        <div style="font-size:11px; color:var(--text-dim); line-height:1.8;">
+          The HUD daemon listens on a second port, writes remote session files into the same sessions folder, and aggregates them with the local ones.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 3 — MULTI-DEVICE DASHBOARD (the new view)
+═══════════════════════════════════════════════════════════════ -->
+<div class="full-row">
+  <div class="page-title">Proposed — Multi-device HUD expanded view</div>
+
+  <!-- Scenario selector -->
+  <div class="demo-controls" id="multi-controls">
+    <button class="demo-btn active-green" onclick="setScenario('both-idle')">Both idle</button>
+    <button class="demo-btn" onclick="setScenario('win-working')">Windows working</button>
+    <button class="demo-btn" onclick="setScenario('mac-approval')">Mac needs approval</button>
+    <button class="demo-btn" onclick="setScenario('both-busy')">Both working</button>
+    <button class="demo-btn" onclick="setScenario('mac-off')">Mac offline</button>
+  </div>
+
+  <!-- Aggregated status banner -->
+  <div class="agg-banner green" id="agg-banner" style="margin-bottom:16px;">
+    <div class="dot green agg-dot" id="agg-dot"></div>
+    <div class="agg-info">
+      <div class="agg-title" id="agg-title">All sessions idle</div>
+      <div class="agg-sub"   id="agg-sub">2 devices · 3 sessions active</div>
+      <div class="agg-devices">
+        <span class="agg-tag" id="agg-tag-win">🖥️ Windows</span>
+        <span class="agg-tag" id="agg-tag-mac">💻 MacBook</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Two device cards side by side -->
+  <div class="grid">
+
+    <!-- Windows device card -->
+    <div class="device-card" id="win-card">
+      <div class="device-header">
+        <div class="device-icon">🖥️</div>
+        <div>
+          <div class="device-name">Windows PC</div>
+          <div style="font-size:10px; color:var(--text-faint);">192.168.1.10 · local</div>
+        </div>
+        <div class="device-conn local" id="win-conn">LOCAL</div>
+      </div>
+      <div class="session-list" id="win-sessions">
+        <div class="session-row">
+          <div class="session-dot green"></div>
+          <div class="session-info">
+            <div class="session-name">Claude-Status-HUD</div>
+            <div class="session-state">Idle · waiting for input</div>
+          </div>
+          <div class="session-ago">just now</div>
+        </div>
+        <div class="session-row">
+          <div class="session-dot green"></div>
+          <div class="session-info">
+            <div class="session-name">my-react-app</div>
+            <div class="session-state">Idle · waiting for input</div>
+          </div>
+          <div class="session-ago">2m ago</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mac device card -->
+    <div class="device-card" id="mac-card">
+      <div class="device-header">
+        <div class="device-icon">💻</div>
+        <div>
+          <div class="device-name">MacBook</div>
+          <div style="font-size:10px; color:var(--text-faint);" id="mac-ip">192.168.1.22 · WiFi</div>
+        </div>
+        <div class="device-conn remote" id="mac-conn">WiFi</div>
+      </div>
+      <div class="session-list" id="mac-sessions">
+        <div class="session-row">
+          <div class="session-dot green"></div>
+          <div class="session-info">
+            <div class="session-name">backend-api</div>
+            <div class="session-state">Idle · waiting for input</div>
+          </div>
+          <div class="session-ago">5m ago</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /grid -->
+
+  <!-- Mini overlay preview: what the floating overlay will show -->
+  <div style="margin-top:8px;">
+    <div class="card-label" style="margin-bottom:12px; padding-left:2px;">Floating overlay (what you see on screen)</div>
+    <div class="hud-overlay" id="hud-multi" style="max-width:300px;">
+      <div class="dot green" id="hud-multi-dot"></div>
+      <div class="hud-text">
+        <div class="hud-title" id="hud-multi-title">All sessions idle</div>
+        <div class="hud-detail" id="hud-multi-detail">3 sessions  ·  2 devices</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCRIPT
+═══════════════════════════════════════════════════════════════ -->
+<script>
+/* ── Single-device overlay demo ─────────────────────────── */
+const singleStates = {
+  grey:  { dot:'grey',  title:'No sessions',       detail:'HUD running · no active sessions',       label:'● No sessions' },
+  green: { dot:'green', title:'Waiting for you',   detail:'1 session  ·  Claude-Status-HUD',        label:'● Idle' },
+  amber: { dot:'amber', title:'Working…',          detail:'1 session  ·  Bash: npm run build',      label:'● Working' },
+  red:   { dot:'red',   title:'Needs your approval', detail:'1 session  ·  approve Write?',         label:'● Needs approval' },
+};
+
+function setSingle(state) {
+  const s = singleStates[state];
+  document.getElementById('hud-dot').className    = 'dot ' + s.dot;
+  document.getElementById('hud-title').textContent  = s.title;
+  document.getElementById('hud-detail').textContent = s.detail;
+  document.querySelectorAll('#single-controls .demo-btn').forEach((b,i) => {
+    const keys = ['grey','green','amber','red'];
+    b.className = 'demo-btn' + (keys[i] === state ? ' active-' + (state==='grey'?'green':state) : '');
+    if (keys[i] === state && state === 'grey') b.className = 'demo-btn';
+  });
+}
+
+/* ── Multi-device dashboard demo ────────────────────────── */
+const scenarios = {
+  'both-idle': {
+    btnClass: 'active-green',
+    agg: { dot:'green', title:'All sessions idle', sub:'2 devices · 3 sessions active', bannerClass:'green' },
+    win: {
+      conn: 'LOCAL', connClass: 'local',
+      sessions: [
+        { dot:'green', name:'Claude-Status-HUD', state:'Idle · waiting for input', ago:'just now' },
+        { dot:'green', name:'my-react-app',      state:'Idle · waiting for input', ago:'2m ago' },
+      ]
+    },
+    mac: {
+      online: true, conn: 'WiFi', connClass: 'remote', ip:'192.168.1.22 · WiFi',
+      sessions: [
+        { dot:'green', name:'backend-api', state:'Idle · waiting for input', ago:'5m ago' },
+      ]
+    },
+    overlay: { dot:'green', title:'All sessions idle', detail:'3 sessions  ·  2 devices' }
+  },
+
+  'win-working': {
+    btnClass: 'active-amber',
+    agg: { dot:'amber', title:'Working…', sub:'Windows PC is busy — 1 tool running', bannerClass:'amber' },
+    win: {
+      conn: 'LOCAL', connClass: 'local',
+      sessions: [
+        { dot:'amber', name:'Claude-Status-HUD', state:'Working · Bash: python install.py', ago:'just now' },
+        { dot:'green', name:'my-react-app',      state:'Idle · waiting for input',           ago:'8m ago' },
+      ]
+    },
+    mac: {
+      online: true, conn: 'WiFi', connClass: 'remote', ip:'192.168.1.22 · WiFi',
+      sessions: [
+        { dot:'green', name:'backend-api', state:'Idle · waiting for input', ago:'5m ago' },
+      ]
+    },
+    overlay: { dot:'amber', title:'Working…', detail:'3 sessions  ·  2 devices' }
+  },
+
+  'mac-approval': {
+    btnClass: 'active-red',
+    agg: { dot:'red', title:'Needs your approval', sub:'MacBook is waiting — approve Write?', bannerClass:'red' },
+    win: {
+      conn: 'LOCAL', connClass: 'local',
+      sessions: [
+        { dot:'green', name:'Claude-Status-HUD', state:'Idle · waiting for input', ago:'2m ago' },
+        { dot:'green', name:'my-react-app',      state:'Idle · waiting for input', ago:'8m ago' },
+      ]
+    },
+    mac: {
+      online: true, conn: 'WiFi', connClass: 'remote', ip:'192.168.1.22 · WiFi',
+      sessions: [
+        { dot:'red', name:'backend-api', state:'Needs approval · approve Write?', ago:'just now' },
+      ]
+    },
+    overlay: { dot:'red', title:'Needs your approval', detail:'Mac · approve Write?' }
+  },
+
+  'both-busy': {
+    btnClass: 'active-amber',
+    agg: { dot:'amber', title:'Working…', sub:'4 sessions active across 2 devices', bannerClass:'amber' },
+    win: {
+      conn: 'LOCAL', connClass: 'local',
+      sessions: [
+        { dot:'amber', name:'Claude-Status-HUD', state:'Working · Write: hud_daemon.pyw', ago:'just now' },
+        { dot:'amber', name:'my-react-app',      state:'Working · Bash: npm test',         ago:'just now' },
+      ]
+    },
+    mac: {
+      online: true, conn: 'WiFi', connClass: 'remote', ip:'192.168.1.22 · WiFi',
+      sessions: [
+        { dot:'amber', name:'backend-api',  state:'Working · Edit: routes.py',      ago:'just now' },
+        { dot:'amber', name:'data-pipeline',state:'Working · Bash: pytest suite',   ago:'30s ago'  },
+      ]
+    },
+    overlay: { dot:'amber', title:'Working…', detail:'4 sessions  ·  2 devices' }
+  },
+
+  'mac-off': {
+    btnClass: '',
+    agg: { dot:'green', title:'Waiting for you', sub:'Windows PC · Mac offline', bannerClass:'green' },
+    win: {
+      conn: 'LOCAL', connClass: 'local',
+      sessions: [
+        { dot:'green', name:'Claude-Status-HUD', state:'Idle · waiting for input', ago:'just now' },
+        { dot:'green', name:'my-react-app',      state:'Idle · waiting for input', ago:'2m ago' },
+      ]
+    },
+    mac: {
+      online: false, conn: 'OFFLINE', connClass: 'off', ip:'Last seen 12m ago',
+      sessions: []
+    },
+    overlay: { dot:'green', title:'Waiting for you', detail:'2 sessions  ·  Windows only' }
+  },
+};
+
+function buildSessions(list) {
+  if (!list.length) return '<div class="no-sessions">No active sessions</div>';
+  return list.map(s => `
+    <div class="session-row">
+      <div class="session-dot ${s.dot}"></div>
+      <div class="session-info">
+        <div class="session-name">${s.name}</div>
+        <div class="session-state">${s.state}</div>
+      </div>
+      <div class="session-ago">${s.ago}</div>
+    </div>
+  `).join('');
+}
+
+function setScenario(key) {
+  const sc = scenarios[key];
+
+  // Aggregated banner
+  const ab = document.getElementById('agg-banner');
+  ab.className = 'agg-banner ' + sc.agg.bannerClass;
+  document.getElementById('agg-dot').className   = 'dot ' + sc.agg.dot + ' agg-dot';
+  document.getElementById('agg-title').textContent = sc.agg.title;
+  document.getElementById('agg-sub').textContent   = sc.agg.sub;
+
+  // Windows sessions
+  document.getElementById('win-conn').textContent = sc.win.conn;
+  document.getElementById('win-conn').className   = 'device-conn ' + sc.win.connClass;
+  document.getElementById('win-sessions').innerHTML = buildSessions(sc.win.sessions);
+
+  // Mac sessions
+  document.getElementById('mac-conn').textContent = sc.mac.conn;
+  document.getElementById('mac-conn').className   = 'device-conn ' + sc.mac.connClass;
+  document.getElementById('mac-ip').textContent   = sc.mac.ip;
+  document.getElementById('mac-sessions').innerHTML = buildSessions(sc.mac.sessions);
+
+  // Overlay replica
+  document.getElementById('hud-multi-dot').className   = 'dot ' + sc.overlay.dot;
+  document.getElementById('hud-multi-title').textContent = sc.overlay.title;
+  document.getElementById('hud-multi-detail').textContent = sc.overlay.detail;
+
+  // Button highlights
+  const btns = document.querySelectorAll('#multi-controls .demo-btn');
+  const keys = ['both-idle','win-working','mac-approval','both-busy','mac-off'];
+  const colorMap = { 'both-idle':'active-green', 'win-working':'active-amber',
+                     'mac-approval':'active-red', 'both-busy':'active-amber', 'mac-off':'' };
+  btns.forEach((b, i) => {
+    b.className = 'demo-btn' + (keys[i] === key && colorMap[key] ? ' ' + colorMap[key] : '');
+  });
+}
+</script>
+</body>
+</html>
