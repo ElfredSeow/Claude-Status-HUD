@@ -70,13 +70,23 @@ def main():
                 pass
             return
 
+        # Preserve cwd from the previous record when the current event omits it
+        # (e.g. Stop and Notification events often don't include cwd).
+        new_cwd = data.get("cwd", "")
+        if not new_cwd:
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    new_cwd = json.load(fh).get("cwd", "")
+            except (OSError, ValueError):
+                pass
+
         record = {
             "session_id": sid,
             "state": decide_state(event, data),
             "ts": time.time(),
             "event": event,
             "tool": data.get("tool_name", ""),
-            "cwd": data.get("cwd", ""),
+            "cwd": new_cwd,
             "message": data.get("message", ""),
         }
         tmp = path + ".tmp"

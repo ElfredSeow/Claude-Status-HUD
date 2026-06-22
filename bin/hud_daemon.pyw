@@ -517,7 +517,7 @@ class OfficePopup:
     """
 
     CARD_W   = 200
-    CARD_H   = 96
+    CARD_H   = 108
     COLS     = 2
     PAD      = 10
     HDR_H    = 48
@@ -727,51 +727,51 @@ class OfficePopup:
         # left accent bar
         c.create_rectangle(x+1, y+8, x+4, y+CH-8, fill=scol, outline="")
 
+        # ── Text area to the right of the robot ──────────────
+        tx = x + 50   # text start x
+
         # ── Claude robot (canvas primitives) ─────────────────
-        # robot body centre at (x+25, y+52) — head centred there
         robot_cx = x + 25
-        robot_cy = y + 52
+        robot_cy = y + 58
         self._draw_robot(c, robot_cx, robot_cy, state, scol)
 
-        # ── Chat bubble above the robot ───────────────────────
+        # ── Chat bubble — constrained to the robot zone so it never
+        #    covers the text area that starts at tx.
         if state == "busy" and tool:
-            bubble = (tool[:15] + "..") if len(tool) > 16 else tool
+            bubble = (tool[:6] + "..") if len(tool) > 7 else tool
         elif state == "idle":
             bubble = "Ready!"
         elif state == "permission":
-            bubble = "Approve me!"
+            bubble = "Approve!"
         else:
             bubble = ""
 
         if bubble:
             bx  = robot_cx - 10
-            by  = robot_cy - 35     # just above antenna tip
-            bw  = min(len(bubble) * 5 + 10, CW - x - bx + x - 4)
+            by  = robot_cy - 46    # above antenna tip
+            # Clamp right edge to stay 4 px left of the text area.
+            bw  = min(len(bubble) * 5 + 10, tx - bx - 4)
             bh  = 13
-            # white rounded bubble
             c.create_rectangle(bx, by, bx+bw, by+bh,
                                 fill="white", outline="", tags="bubble")
             c.create_text(bx + bw//2, by + bh//2, text=bubble,
                           font=("Segoe UI", 7), fill="#111", tags="bubble")
-            # tiny pointer triangle
             c.create_polygon(bx+6, by+bh, bx+10, by+bh, bx+7, by+bh+5,
                              fill="white", outline="", tags="bubble")
 
-        # ── Text area to the right of the robot ──────────────
-        tx = x + 50   # text start x
+        # session name — anchor nw so it flows downward and can use width
+        # for soft-wrapping; show up to 40 chars before hard-truncating.
+        name_display = name if len(name) <= 40 else name[:38] + ".."
+        c.create_text(tx, y + 8, text=name_display,
+                      font=("Segoe UI", 9, "bold"), anchor="nw", fill=self.C_TEXT,
+                      width=CW - (tx - x) - 6)
 
-        # session name
-        name_t = (name[:17] + "..") if len(name) > 18 else name
-        c.create_text(tx, y + 18, text=name_t,
-                      font=("Segoe UI", 9, "bold"), anchor="w", fill=self.C_TEXT)
-
-        # state pill
+        # state pill (moved down to clear two-line name room)
         lbl = self.STATE_LABEL.get(state, state)
-        # draw a small coloured pill
-        pw = len(lbl) * 6 + 10
-        c.create_rectangle(tx, y+28, tx+pw, y+40,
+        pw  = len(lbl) * 6 + 10
+        c.create_rectangle(tx, y+44, tx+pw, y+56,
                            fill=scol + "22", outline=scol, width=1)
-        c.create_text(tx + pw//2, y+34, text=lbl,
+        c.create_text(tx + pw//2, y+50, text=lbl,
                       font=("Segoe UI", 7, "bold"), fill=scol, anchor="center")
 
         # detail line
@@ -784,15 +784,15 @@ class OfficePopup:
         else:
             detail = ""
         if detail:
-            dt = (detail[:20] + "..") if len(detail) > 21 else detail
-            c.create_text(tx, y+50, text=dt,
-                          font=("Segoe UI", 7), anchor="w", fill=self.C_DIM)
+            c.create_text(tx, y+64, text=detail,
+                          font=("Segoe UI", 7), anchor="nw", fill=self.C_DIM,
+                          width=CW - (tx - x) - 6)
 
         # device badge (remote sessions)
         dev = sess.get("device", "local")
         if dev and dev != "local":
             dev_name = (sess.get("device_name") or dev.upper())[:8]
-            c.create_text(x+CW-6, y+16, text=dev_name,
+            c.create_text(x+CW-6, y+10, text=dev_name,
                           font=("Segoe UI", 7, "bold"), anchor="e", fill="#7a8aaa")
 
         # timestamp bottom-right
@@ -952,6 +952,7 @@ class Overlay:
         self.root.after(150,  self._poll)
         self.root.after(2000, self._keep_top)
         self.root.after(1500, self._popup_refresh)
+        self.root.after(120,  self._hover_poll)
 
     # ---- drawing ----
     def _round_rect(self, x1, y1, x2, y2, r, **kw):
@@ -1072,6 +1073,23 @@ class Overlay:
         if trigger == "none":
             return
         self.popup.start_hide()
+
+    def _hover_poll(self):
+        """Fallback hover detection — catches cases where <Enter> is not re-fired
+        after the popup appears/disappears (common on Windows overrideredirect windows)."""
+        try:
+            trigger = self.cfg.get("office_popup", {}).get("trigger", "hover")
+            if trigger == "hover" and not self.popup.visible:
+                px = self.root.winfo_pointerx()
+                py = self.root.winfo_pointery()
+                hx = self.root.winfo_x()
+                hy = self.root.winfo_y()
+                if hx <= px <= hx + self.W and hy <= py <= hy + self.H:
+                    self.popup.cancel_hide()
+                    self.popup.show()
+        except tk.TclError:
+            pass
+        self.root.after(120, self._hover_poll)
 
     # ---- context menu ----
     def _build_menu(self):
