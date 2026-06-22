@@ -8,12 +8,15 @@ create-shortcut.ps1) to the taskbar for one-click access.
 
 import os
 import sys
+import ctypes
 import socket
 import subprocess
 import winreg
 import time
 import tkinter as tk
 import tkinter.font as tkfont
+
+_APP_ID = "Claude.TrafficLight.Launcher"
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -25,7 +28,7 @@ STOP_CMD    = os.path.join(PROJECT_DIR, "stop-hud.cmd")
 ICON_PATH   = os.path.join(SCRIPT_DIR, "traffic_light.ico")
 DAEMON_PY   = os.path.join(SCRIPT_DIR, "hud_daemon.pyw")
 
-HUD_PORT = 51789
+HUD_PORT = 59990
 _STARTUP_KEY  = r"Software\Microsoft\Windows\CurrentVersion\Run"
 _STARTUP_NAME = "ClaudeStatusHUD"
 
@@ -271,6 +274,10 @@ class LauncherApp:
 # ---------------------------------------------------------------------------
 
 def main():
+    try:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(_APP_ID)
+    except Exception:
+        pass
     app = LauncherApp()
     app.run()
 

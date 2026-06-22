@@ -63,7 +63,7 @@ DEFAULT_CONFIG = {
     "position":       {"x": 80, "y": 80},
     "alpha":          0.93,
     "outputs":        {"overlay": True, "keyboard_mouse": True},
-    "port":           51789,
+    "port":           59990,
     "colors": {
         "permission": [235, 45, 45],
         "busy":       [255, 150, 0],
@@ -78,7 +78,7 @@ DEFAULT_CONFIG = {
     # Multi-device: remote session receiver
     "remote": {
         "enabled": True,
-        "port":    51790,
+        "port":    59991,
     },
     # Which device_id is considered "primary" — affects overlay detail text.
     # "local" means this PC.  Set to a remote device_id (e.g. "mac") to
@@ -460,6 +460,18 @@ def get_monitors():
         u = ctypes.windll.user32
         monitors.append((0, 0, u.GetSystemMetrics(0), u.GetSystemMetrics(1)))
     return monitors
+
+
+def _clamp_to_monitors(x, y, w, h):
+    """Return (x, y) adjusted so the window has at least 60×30 px visible on some monitor."""
+    mons = get_monitors()
+    for l, t, r, b in mons:
+        ox = max(0, min(x + w, r) - max(x, l))
+        oy = max(0, min(y + h, b) - max(y, t))
+        if ox >= 60 and oy >= 30:
+            return x, y
+    l, t, r, b = mons[0]
+    return l + 80, t + 80
 
 
 def set_dpi_aware():
@@ -947,9 +959,8 @@ class Overlay:
         self.root.attributes("-alpha", float(cfg.get("alpha", 0.93)))
         self.root.configure(bg=CHROMA)
 
-        x = cfg["position"]["x"]
-        y = cfg["position"]["y"]
-        self.root.geometry(f"{self.W}x{self.H}+{x}+{y}")
+        self._start_x = cfg["position"]["x"]
+        self._start_y = cfg["position"]["y"]
 
         self.canvas = tk.Canvas(
             self.root, width=self.W, height=self.H,
@@ -977,11 +988,28 @@ class Overlay:
         self._build_menu()
 
         self.root.deiconify()
+        # after(0) runs once mainloop starts — by then Windows has restored the
+        # window-class saved position.  We override it with SetWindowPos (more
+        # reliable than geometry() against Windows' class-position restore).
+        self.root.after(0,    self._enforce_position)
         self.root.after(0,    self._tick)
         self.root.after(150,  self._poll)
         self.root.after(2000, self._keep_top)
         self.root.after(1500, self._popup_refresh)
         self.root.after(120,  self._hover_poll)
+
+    # ---- position enforcement ----
+    def _enforce_position(self):
+        import ctypes
+        sx, sy = _clamp_to_monitors(self._start_x, self._start_y, self.W, self.H)
+        self.root.geometry(f"{self.W}x{self.H}+{sx}+{sy}")
+        # SetWindowPos bypasses Windows' class-position restore that beats geometry()
+        hwnd = self.root.winfo_id()
+        ctypes.windll.user32.SetWindowPos(
+            hwnd, ctypes.c_void_p(-1),  # HWND_TOPMOST
+            sx, sy, self.W, self.H, 0x0040,  # SWP_SHOWWINDOW
+        )
+        self.cfg["position"] = {"x": sx, "y": sy}
 
     # ---- drawing ----
     def _round_rect(self, x1, y1, x2, y2, r, **kw):
@@ -1067,17 +1095,29 @@ class Overlay:
         if data is None:
             return
 
-        session_pct = float(data.get("session_pct", 0))
-        weekly_h    = float(data.get("weekly_h",    0))
-        weekly_max  = float(data.get("weekly_max",  80))
-        monthly_pct = float(data.get("monthly_pct", 0))
-        weekly_pct  = (weekly_h / weekly_max * 100) if weekly_max > 0 else 0
+        # New format: session_ctx_pct, weekly_cost, monthly_cost (dollars)
+        # Falls back to legacy fields so old usage.json still works.
+        session_pct  = float(data.get("session_ctx_pct",
+                                      data.get("session_pct", 0)))
+        weekly_cost  = float(data.get("weekly_cost",  0))
+        monthly_cost = float(data.get("monthly_cost", 0))
+
+        # Budget defaults: $200/week, $800/month (configurable via config.json
+        # under "usage_budget": {"weekly": 200, "monthly": 800})
+        budget_cfg     = self.cfg.get("usage_budget", {})
+        weekly_budget  = float(budget_cfg.get("weekly",  200.0))
+        monthly_budget = float(budget_cfg.get("monthly", 800.0))
+
+        weekly_pct  = min(weekly_cost  / weekly_budget  * 100, 100.0) \
+                      if weekly_budget  > 0 else 0.0
+        monthly_pct = min(monthly_cost / monthly_budget * 100, 100.0) \
+                      if monthly_budget > 0 else 0.0
 
         targets = [session_pct, weekly_pct, monthly_pct]
         labels  = [
             f"{session_pct:.0f}%",
-            f"{weekly_h:.1f}h / {weekly_max:.0f}h",
-            f"{monthly_pct:.0f}%",
+            f"${weekly_cost:.2f}",
+            f"${monthly_cost:.2f}",
         ]
 
         for i in range(3):
@@ -1162,6 +1202,13 @@ class Overlay:
         try:
             self.root.attributes("-topmost", True)
             self.root.lift()
+            # Snap back if a monitor was disconnected since the last tick
+            cx, cy = self.root.winfo_x(), self.root.winfo_y()
+            nx, ny = _clamp_to_monitors(cx, cy, self.W, self.H)
+            if nx != cx or ny != cy:
+                self.root.geometry(f"+{nx}+{ny}")
+                self.cfg["position"] = {"x": nx, "y": ny}
+                save_config(self.cfg)
             if self.popup.visible and self.popup._win and self.popup._win.winfo_exists():
                 self.popup._win.attributes("-topmost", True)
                 self.popup._win.lift()
