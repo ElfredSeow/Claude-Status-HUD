@@ -50,6 +50,7 @@ from logi_led import LogiLED  # noqa: E402
 HUD_DIR      = os.path.join(os.path.expanduser("~"), ".claude", "hud")
 SESSIONS_DIR = os.path.join(HUD_DIR, "sessions")
 CONFIG_PATH  = os.path.join(HUD_DIR, "config.json")
+USAGE_PATH   = os.path.join(HUD_DIR, "usage.json")
 LOG_PATH     = os.path.join(HUD_DIR, "hud.log")
 
 BUSY_STALE_SECONDS       = 150
@@ -96,6 +97,15 @@ CHROMA       = "#01020a"
 PANEL_BG     = "#171a21"
 PANEL_OUTLINE= "#2b303b"
 PANEL_BG_RGB = (23, 26, 33)
+
+# Connected-card design colours (match hud-overlay.html CSS variables)
+DIVIDER_COL  = "#353c4a"   # --border2: line between HUD and usage sections
+TEXT_FAINT_C = "#5a6275"   # --text-faint
+TEXT_DIM_C   = "#9aa3b2"   # --text-dim
+TRACK_BG_C   = "#232838"   # rgba(255,255,255,.07) blended onto --surface
+USG_GREEN    = "#2dcd5f"   # --green
+USG_AMBER    = "#ff9600"   # --amber
+USG_RED      = "#eb2d2d"   # --red
 
 _STARTUP_REG_KEY  = r"Software\Microsoft\Windows\CurrentVersion\Run"
 _STARTUP_REG_NAME = "ClaudeStatusHUD"
@@ -177,6 +187,14 @@ def save_config(cfg):
         os.replace(tmp, CONFIG_PATH)
     except OSError as e:
         log(f"save_config failed: {e}")
+
+
+def _load_usage() -> dict | None:
+    try:
+        with open(USAGE_PATH, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return None
 
 
 # ----------------------------------------------------------------------------
@@ -901,7 +919,8 @@ class OfficePopup:
 # Overlay window
 # ----------------------------------------------------------------------------
 class Overlay:
-    W, H = 232, 70
+    W, H  = 280, 148   # connected card: traffic-light + usage panel
+    H_TOP = 47         # height of traffic-light section
 
     def __init__(self, cfg):
         self.cfg          = cfg
@@ -938,8 +957,18 @@ class Overlay:
         )
         self.canvas.pack(fill="both", expand=True)
 
-        self.title_font  = tkfont.Font(family="Segoe UI", size=11, weight="bold")
+        self.title_font  = tkfont.Font(family="Segoe UI", size=10, weight="bold")
         self.detail_font = tkfont.Font(family="Segoe UI", size=8)
+        self.ph_font     = tkfont.Font(family="Segoe UI", size=7,  weight="bold")
+        self.usg_font    = tkfont.Font(family="Segoe UI", size=8,  weight="bold")
+
+        # Usage animation state
+        self.usage_fills:  list  = []
+        self.usage_tracks: list  = []
+        self.usage_vals:   list  = []
+        self._usage_pcts:  list  = [0.0, 0.0, 0.0]
+        self._usage_mtime: float = 0.0
+        self._bar_anim:    list  = [None, None, None]
 
         self.popup = OfficePopup(self)
 
@@ -964,17 +993,52 @@ class Overlay:
 
     def _build(self):
         c = self.canvas
-        self._round_rect(1, 1, self.W-1, self.H-1, 16,
+        TX1, TX2 = 73, 193  # track x-range (120px wide)
+
+        # ── Outer card (single rounded rect for both sections) ──
+        self._round_rect(1, 1, self.W - 1, self.H - 1, 16,
                          fill=PANEL_BG, outline=PANEL_OUTLINE, width=1)
-        cx, cy = 36, self.H // 2
-        self.glow    = c.create_oval(cx-22, cy-22, cx+22, cy+22, fill=PANEL_BG, outline="")
-        self.led_dot = c.create_oval(cx-13, cy-13, cx+13, cy+13, fill="#555", outline="")
-        self.title_item = c.create_text(
-            66, cy-10, anchor="w", text="Starting…",
+
+        # Divider between traffic-light and usage panel
+        c.create_line(1, self.H_TOP, self.W - 1, self.H_TOP,
+                      fill=DIVIDER_COL, width=1)
+
+        # ── Traffic-light section ──
+        cx, cy = 36, self.H_TOP // 2
+        self.glow    = c.create_oval(cx - 18, cy - 18, cx + 18, cy + 18,
+                                     fill=PANEL_BG, outline="")
+        self.led_dot = c.create_oval(cx - 11, cy - 11, cx + 11, cy + 11,
+                                     fill="#555", outline="")
+        self.title_item  = c.create_text(
+            62, cy - 7, anchor="w", text="Starting…",
             fill="#f4f5f7", font=self.title_font)
         self.detail_item = c.create_text(
-            66, cy+11, anchor="w", text="", fill="#9aa3b2",
-            font=self.detail_font)
+            62, cy + 9, anchor="w", text="",
+            fill=TEXT_DIM_C, font=self.detail_font)
+
+        # ── Usage panel section ──
+        c.create_text(18, self.H_TOP + 16, anchor="w", text="API USAGE",
+                      fill=TEXT_FAINT_C, font=self.ph_font)
+
+        row_ctrs = [self.H_TOP + 37, self.H_TOP + 56, self.H_TOP + 75]
+        row_lbls = ["Session", "Weekly", "Monthly"]
+
+        self.usage_tracks = []
+        self.usage_fills  = []
+        self.usage_vals   = []
+
+        for ry, lbl in zip(row_ctrs, row_lbls):
+            c.create_text(18, ry, anchor="w", text=lbl,
+                          fill=TEXT_DIM_C, font=self.usg_font)
+            tr = c.create_rectangle(TX1, ry - 1, TX2, ry + 2,
+                                    fill=TRACK_BG_C, outline="")
+            self.usage_tracks.append(tr)
+            fl = c.create_rectangle(TX1, ry - 1, TX1, ry + 2,
+                                    fill=USG_GREEN, outline="")
+            self.usage_fills.append(fl)
+            vl = c.create_text(self.W - 16, ry, anchor="e", text="—",
+                                fill=TEXT_DIM_C, font=self.usg_font)
+            self.usage_vals.append(vl)
 
     def _set_dot(self, rgb, glow_alpha):
         hexc = "#%02x%02x%02x" % rgb
@@ -982,6 +1046,85 @@ class Overlay:
         gr = tuple(int(PANEL_BG_RGB[i] + (rgb[i]-PANEL_BG_RGB[i]) * glow_alpha)
                    for i in range(3))
         self.canvas.itemconfig(self.glow, fill="#%02x%02x%02x" % gr)
+
+    # ---- usage panel ----
+    def _usage_color(self, pct: float) -> str:
+        if pct >= 85:
+            return USG_RED
+        if pct >= 60:
+            return USG_AMBER
+        return USG_GREEN
+
+    def _refresh_usage(self):
+        try:
+            mtime = os.path.getmtime(USAGE_PATH)
+        except OSError:
+            return  # No usage file yet — bars stay at dashes
+        if mtime <= self._usage_mtime:
+            return
+        self._usage_mtime = mtime
+        data = _load_usage()
+        if data is None:
+            return
+
+        session_pct = float(data.get("session_pct", 0))
+        weekly_h    = float(data.get("weekly_h",    0))
+        weekly_max  = float(data.get("weekly_max",  80))
+        monthly_pct = float(data.get("monthly_pct", 0))
+        weekly_pct  = (weekly_h / weekly_max * 100) if weekly_max > 0 else 0
+
+        targets = [session_pct, weekly_pct, monthly_pct]
+        labels  = [
+            f"{session_pct:.0f}%",
+            f"{weekly_h:.1f}h / {weekly_max:.0f}h",
+            f"{monthly_pct:.0f}%",
+        ]
+
+        for i in range(3):
+            old_pct = self._usage_pcts[i]
+            new_pct = targets[i]
+            col     = self._usage_color(new_pct)
+            delay   = i * 45
+            self.root.after(
+                delay,
+                lambda i=i, old=old_pct, new=new_pct, lbl=labels[i], c=col:
+                    self._animate_bar_to(i, old, new, lbl, c),
+            )
+            self._usage_pcts[i] = new_pct
+
+    def _animate_bar_to(self, idx: int, start_pct: float, end_pct: float,
+                        label: str, color: str, duration_ms: int = 520):
+        if self._bar_anim[idx] is not None:
+            try:
+                self.root.after_cancel(self._bar_anim[idx])
+            except Exception:
+                pass
+            self._bar_anim[idx] = None
+
+        TX1, TX2  = 73, 193
+        track_w   = TX2 - TX1          # 120 px
+        start_t   = time.time()
+        val_color = (USG_RED   if end_pct >= 85 else
+                     USG_AMBER if end_pct >= 60 else TEXT_DIM_C)
+        ry        = self.H_TOP + 37 + idx * 19
+
+        def _step():
+            elapsed = (time.time() - start_t) * 1000
+            t       = min(elapsed / duration_ms, 1.0)
+            ease    = 1.0 - (1.0 - t) ** 3   # cubic ease-out
+            pct     = start_pct + (end_pct - start_pct) * ease
+            fill_x2 = TX1 + int(track_w * max(0.0, pct) / 100)
+            self.canvas.coords(self.usage_fills[idx],
+                               TX1, ry - 1, fill_x2, ry + 2)
+            self.canvas.itemconfig(self.usage_fills[idx], fill=color)
+            self.canvas.itemconfig(self.usage_vals[idx],
+                                   text=label, fill=val_color)
+            if t < 1.0:
+                self._bar_anim[idx] = self.root.after(16, _step)
+            else:
+                self._bar_anim[idx] = None
+
+        self._bar_anim[idx] = self.root.after(0, _step)
 
     # ---- animation ----
     def _tick(self):
@@ -1012,6 +1155,7 @@ class Overlay:
             self.canvas.itemconfig(self.title_item,  text=summary[0])
             self.canvas.itemconfig(self.detail_item, text=summary[1])
             self.hw.apply(state)
+        self._refresh_usage()
         self.root.after(150, self._poll)
 
     def _keep_top(self):

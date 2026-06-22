@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude HUD</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --surface:    #171a21;
+    --surface2:   #1e2230;
+    --border:     #2b303b;
+    --border2:    #353c4a;
+    --text:       #f4f5f7;
+    --text-dim:   #9aa3b2;
+    --text-faint: #5a6275;
+    --green:      #2dcd5f;
+    --green-glow: rgba(45,205,95,0.18);
+    --amber:      #ff9600;
+    --amber-glow: rgba(255,150,0,0.18);
+    --red:        #eb2d2d;
+    --red-glow:   rgba(235,45,45,0.18);
+    --grey:       #5f646e;
+    --ease-snap:  cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  html {
+    background: transparent;
+    width: 280px;
+    overflow: hidden;
+  }
+
+  body {
+    background: transparent;
+    width: 280px;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    color: var(--text);
+    /* Prevent text selection during drag */
+    user-select: none;
+    -webkit-user-select: none;
+    overflow: hidden;
+  }
+
+  /* Grab cursor over the full widget */
+  #hud-root {
+    cursor: grab;
+    width: 280px;
+  }
+  #hud-root.dragging { cursor: grabbing; }
+
+  /* ── Traffic-light header ─────────────────────────────── */
+  .hud-overlay {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 16px 16px 0 0;
+    padding: 12px 18px;
+    width: 280px;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Top-left highlight matching the mockup */
+  .hud-overlay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 16px 16px 0 0;
+    background: linear-gradient(135deg, rgba(255,255,255,.025) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .hud-text { flex: 1; min-width: 0; }
+  .hud-title  { font-size: 13px; font-weight: 700; color: var(--text); }
+  .hud-detail {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Traffic-light dot ───────────────────────────────── */
+  .dot {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    position: relative;
+    /* Specify exact props — no transition:all */
+    transition: background 300ms ease, box-shadow 300ms ease;
+  }
+  .dot::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    opacity: .45;
+    transition: background 300ms ease;
+  }
+
+  .dot.green { background: var(--green); box-shadow: 0 0 10px var(--green); }
+  .dot.green::after { background: var(--green-glow); }
+  .dot.amber { background: var(--amber); }
+  .dot.amber::after { background: var(--amber-glow); }
+  .dot.red   { background: var(--red); box-shadow: 0 0 10px var(--red); }
+  .dot.red::after { background: var(--red-glow); }
+  .dot.grey  { background: var(--grey); }
+  .dot.grey::after { background: rgba(95,100,110,0.12); }
+
+  /* Pulse animations for active states */
+  @keyframes pulse-amber {
+    0%,100% { opacity: 1; box-shadow: 0 0 6px var(--amber); }
+    50%      { opacity: .5; box-shadow: 0 0 18px var(--amber); }
+  }
+  @keyframes pulse-red {
+    0%,100% { box-shadow: 0 0 6px var(--red); }
+    50%      { box-shadow: 0 0 20px var(--red); }
+  }
+  .dot.amber { animation: pulse-amber 1.4s ease-in-out infinite; }
+  .dot.red   { animation: pulse-red   2s   ease-in-out infinite; }
+
+  /* ── Usage panel ─────────────────────────────────────── */
+  .usage-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 1px solid var(--border2);
+    border-radius: 0 0 16px 16px;
+    padding: 11px 18px 15px;
+    width: 280px;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Subtle inner gradient — matches hud-overlay::before direction */
+  .usage-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 0 0 16px 16px;
+    background: linear-gradient(180deg, rgba(255,255,255,.018) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .usage-ph {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+
+  .usage-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 7px;
+  }
+  .usage-row:last-child { margin-bottom: 0; }
+
+  .usage-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-dim);
+    width: 46px;
+    flex-shrink: 0;
+  }
+
+  .usage-track {
+    flex: 1;
+    height: 3px;
+    background: rgba(255,255,255,.07);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .usage-fill {
+    height: 100%;
+    border-radius: 3px;
+    width: 0;
+    transition: width 520ms var(--ease-snap),
+                background-color 300ms ease;
+  }
+  .usage-fill.c-green { background: var(--green); }
+  .usage-fill.c-amber { background: var(--amber); }
+  .usage-fill.c-red   { background: var(--red); }
+
+  .usage-val {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: right;
+    width: 60px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    transition: color 300ms ease;
+  }
+  .usage-val.v-amber { color: var(--amber); }
+  .usage-val.v-red   { color: var(--red); }
+</style>
+</head>
+<body>
+
+<div id="hud-root">
+
+  <!-- Traffic-light header -->
+  <div class="hud-overlay">
+    <div class="dot green" id="dot"></div>
+    <div class="hud-text">
+      <div class="hud-title"  id="hud-title">Waiting for you</div>
+      <div class="hud-detail" id="hud-detail">No active sessions</div>
+    </div>
+  </div>
+
+  <!-- Usage panel (sits flush below the overlay) -->
+  <div class="usage-panel">
+    <div class="usage-ph">API Usage</div>
+
+    <div class="usage-row">
+      <span class="usage-label">Session</span>
+      <div class="usage-track">
+        <div class="usage-fill c-green" id="bar-session"></div>
+      </div>
+      <span class="usage-val" id="val-session">—</span>
+    </div>
+
+    <div class="usage-row">
+      <span class="usage-label">Weekly</span>
+      <div class="usage-track">
+        <div class="usage-fill c-green" id="bar-weekly"></div>
+      </div>
+      <span class="usage-val" id="val-weekly">—</span>
+    </div>
+
+    <div class="usage-row">
+      <span class="usage-label">Monthly</span>
+      <div class="usage-track">
+        <div class="usage-fill c-green" id="bar-monthly"></div>
+      </div>
+      <span class="usage-val" id="val-monthly">—</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── Public API ─────────────────────────────────────────────
+  // Called by the Python backend via webview.evaluate_js(...)
+
+  /**
+   * Update traffic-light state.
+   * @param {'green'|'amber'|'red'|'grey'} color
+   * @param {string} title  e.g. "Working…"
+   * @param {string} detail e.g. "2 sessions · Bash: npm test"
+   */
+  function setStatus(color, title, detail) {
+    document.getElementById('dot').className     = 'dot ' + color;
+    document.getElementById('hud-title').textContent  = title;
+    document.getElementById('hud-detail').textContent = detail;
+  }
+
+  /**
+   * Update usage bars with staggered animation.
+   * @param {number} sessionPct  0–100  (5-hour rolling window %)
+   * @param {number} weeklyH     hours used out of 80
+   * @param {number} monthlyPct  0–100  (plan period %)
+   */
+  function setUsage(sessionPct, weeklyH, monthlyPct) {
+    _animateBar('session', sessionPct,            sessionPct + '%',                   0);
+    _animateBar('weekly',  weeklyH / 80 * 100,    weeklyH.toFixed(1) + 'h / 80h',   45);
+    _animateBar('monthly', monthlyPct,             monthlyPct + '%',                  90);
+  }
+
+  function _colorCls(pct) {
+    if (pct >= 85) return 'c-red';
+    if (pct >= 60) return 'c-amber';
+    return 'c-green';
+  }
+  function _valCls(pct) {
+    if (pct >= 85) return ' v-red';
+    if (pct >= 60) return ' v-amber';
+    return '';
+  }
+
+  function _animateBar(id, pct, label, delay) {
+    setTimeout(() => {
+      const fill = document.getElementById('bar-' + id);
+      const val  = document.getElementById('val-'  + id);
+      // Reset to 0 so the ease-out transition always fires from the start
+      fill.style.width = '0';
+      fill.getBoundingClientRect(); // force reflow
+      fill.className = 'usage-fill ' + _colorCls(pct);
+      fill.style.width = pct + '%';
+      val.textContent = label;
+      val.className   = 'usage-val' + _valCls(pct);
+    }, delay);
+  }
+
+  // ── Drag to move ───────────────────────────────────────────
+  // The Python side must expose pywebview.api.move_window(dx, dy)
+  (function initDrag() {
+    const root = document.getElementById('hud-root');
+    let sx = 0, sy = 0;
+
+    root.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      sx = e.screenX;
+      sy = e.screenY;
+      root.classList.add('dragging');
+
+      const onMove = e2 => {
+        const dx = e2.screenX - sx;
+        const dy = e2.screenY - sy;
+        sx = e2.screenX;
+        sy = e2.screenY;
+        if (window.pywebview?.api?.move_window) {
+          window.pywebview.api.move_window(dx, dy);
+        }
+      };
+
+      const onUp = () => {
+        root.classList.remove('dragging');
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup',   onUp);
+      };
+
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup',   onUp);
+    });
+  })();
+
+  // Right-click → Python context menu
+  document.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    window.pywebview?.api?.show_context_menu?.();
+  });
+
+  // ── Boot ───────────────────────────────────────────────────
+  // Animate bars on load with example values.
+  // In production the Python daemon calls setStatus() + setUsage()
+  // after it reads the sessions folder and usage data.
+  setTimeout(() => setUsage(28, 12, 21), 350);
+</script>
+</body>
+</html>

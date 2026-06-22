@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taygedo: TV-Head Workspace Agent</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: #0f172a;
+        }
+        .retro-font {
+            font-family: 'VT323', monospace;
+        }
+        /* Custom scrollbar for log */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+        /* Joystick / Touch support styling */
+        .joystick-zone {
+            touch-action: none;
+        }
+    </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col overflow-hidden">
+
+    <!-- Top Header Navigation Bar -->
+    <header class="bg-slate-900 border-b border-amber-500/30 px-6 py-4 flex flex-wrap items-center justify-between shadow-lg z-10">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.4)]">
+                <i class="fa-solid fa-tv text-slate-950 text-xl animate-pulse"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-wide text-amber-400 flex items-center gap-2">
+                    TAYGEDO <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-mono">v1.2-ALPHA</span>
+                </h1>
+                <p class="text-xs text-slate-400">Autonomous TV-Head Workspace System Agent</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-6 mt-2 sm:mt-0">
+            <!-- Global Status Indicators -->
+            <div class="flex items-center gap-4 text-xs font-mono">
+                <div class="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1.5 rounded-md border border-slate-700">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    <span class="text-emerald-400">AGENT ACTIVE</span>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-md border border-slate-700">
+                    <i class="fa-solid fa-battery-three-quarters text-amber-400"></i>
+                    <span id="header-battery">85%</span>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-md border border-slate-700">
+                    <i class="fa-solid fa-temperature-high text-rose-400"></i>
+                    <span id="header-temp">42°C</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="flex-1 flex flex-col lg:flex-row relative overflow-hidden">
+        
+        <!-- Left Side: Control Panel & Status Log -->
+        <section class="w-full lg:w-80 bg-slate-900/90 border-r border-amber-500/20 p-4 flex flex-col justify-between space-y-4 z-10 max-h-[40vh] lg:max-h-none overflow-y-auto">
+            <!-- Agent Blueprint / Avatar Card -->
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col items-center text-center relative overflow-hidden">
+                <div class="absolute top-2 right-2 flex gap-1">
+                    <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                </div>
+                <!-- Mini visual representations from user files -->
+                <div class="w-28 h-28 bg-slate-900 rounded-full border-2 border-amber-500/50 flex items-center justify-center overflow-hidden mb-3 shadow-[inset_0_0_15px_rgba(245,158,11,0.2)]">
+                    <!-- Retro TV Drawing using SVG to match the theme character in a dynamic styling -->
+                    <svg class="w-20 h-20" viewBox="0 0 100 100">
+                        <!-- Ears/Antennas -->
+                        <line x1="50" y1="25" x2="30" y2="10" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
+                        <line x1="50" y1="25" x2="70" y2="10" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
+                        <circle cx="30" cy="10" r="4" fill="#f59e0b" />
+                        <circle cx="70" cy="10" r="4" fill="#f59e0b" />
+                        <!-- TV Body -->
+                        <rect x="15" y="25" width="70" height="55" rx="8" fill="#5c4033" stroke="#d97706" stroke-width="3"/>
+                        <!-- Screen -->
+                        <rect x="23" y="32" width="54" height="40" rx="4" fill="#2dd4bf"/>
+                        <!-- Dog Face Details (Retro Pixel Theme) -->
+                        <rect x="35" y="42" width="30" height="20" rx="3" fill="#6b7280" />
+                        <circle cx="42" cy="48" r="3" fill="#ffffff" />
+                        <circle cx="58" cy="48" r="3" fill="#ffffff" />
+                        <circle cx="42" cy="48" r="1" fill="#000000" />
+                        <circle cx="58" cy="48" r="1" fill="#000000" />
+                        <!-- Dog Ears -->
+                        <polygon points="35,42 41,38 43,42" fill="#fda4af"/>
+                        <polygon points="65,42 59,38 57,42" fill="#fda4af"/>
+                        <!-- Snout -->
+                        <polygon points="48,53 52,53 50,55" fill="#000"/>
+                        <path d="M 47 57 Q 50 59 53 57" stroke="#000" fill="none" stroke-width="1.5"/>
+                    </svg>
+                </div>
+                <h3 class="font-bold text-amber-400">Agent Unit: T-01</h3>
+                <p class="text-xs text-slate-400 mt-1">Specialization: Office Automations & Coffee Co-Piloting</p>
+                
+                <!-- Dynamic Expression Display -->
+                <div class="mt-3 px-3 py-1 bg-slate-900 border border-slate-800 rounded-md text-xs font-mono text-cyan-400 flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                    <span>EMOTION STATE: <span id="agent-state">HAPPY</span></span>
+                </div>
+            </div>
+
+            <!-- Task Progression Checklist -->
+            <div class="space-y-3">
+                <h4 class="text-sm font-semibold tracking-wider text-slate-300 uppercase flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-amber-500"></i> Active Task Queue
+                </h4>
+                <div class="space-y-2 text-xs font-mono">
+                    <div id="task-coding" class="p-2.5 rounded-lg border border-slate-800 bg-slate-950 flex justify-between items-center transition-colors">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <i class="fa-solid fa-code text-indigo-400 flex-shrink-0"></i>
+                            <div class="min-w-0">
+                                <p class="font-bold text-slate-200 truncate">Optimize Codebases</p>
+                                <p class="text-[10px] text-slate-500 truncate">Deploy scripts at Coding Desks</p>
+                            </div>
+                        </div>
+                        <span id="task-coding-status" class="text-amber-500 flex-shrink-0 ml-2">0/3</span>
+                    </div>
+                    <div id="task-servers" class="p-2.5 rounded-lg border border-slate-800 bg-slate-950 flex justify-between items-center transition-colors">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <i class="fa-solid fa-server text-emerald-400 flex-shrink-0"></i>
+                            <div class="min-w-0">
+                                <p class="font-bold text-slate-200 truncate">Triage Server Racks</p>
+                                <p class="text-[10px] text-slate-500 truncate">Fix connection glitches in backend</p>
+                            </div>
+                        </div>
+                        <span id="task-servers-status" class="text-amber-500 flex-shrink-0 ml-2">0/2</span>
+                    </div>
+                    <div id="task-plants" class="p-2.5 rounded-lg border border-slate-800 bg-slate-950 flex justify-between items-center transition-colors">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <i class="fa-solid fa-seedling text-teal-400 flex-shrink-0"></i>
+                            <div class="min-w-0">
+                                <p class="font-bold text-slate-200 truncate">Nurture Office Flora</p>
+                                <p class="text-[10px] text-slate-500 truncate">Water the thirsty desktop plants</p>
+                            </div>
+                        </div>
+                        <span id="task-plants-status" class="text-amber-500 flex-shrink-0 ml-2">0/3</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Logs console -->
+            <div class="flex-1 flex flex-col min-h-[120px] max-h-[200px] lg:max-h-none">
+                <h4 class="text-sm font-semibold tracking-wider text-slate-300 uppercase mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-terminal text-slate-400"></i> Workspace Output
+                </h4>
+                <div id="log-console" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2.5 font-mono text-[11px] text-slate-300 space-y-1 overflow-y-auto leading-relaxed">
+                    <p class="text-slate-500">[11:45:18] Boot sequence initialized...</p>
+                    <p class="text-amber-400">[11:45:19] Taygedo TV-Head Agent online.</p>
+                    <p class="text-slate-400">[11:45:19] Ready to explore office grid environment.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Center: Interactive Game Viewport -->
+        <section class="flex-1 bg-slate-950 relative flex flex-col">
+            <!-- Live Info Overlay -->
+            <div class="absolute top-4 left-4 bg-slate-900/95 border border-slate-800 px-4 py-2.5 rounded-lg shadow-xl z-10 pointer-events-none flex flex-wrap gap-4 items-center max-w-[90%]">
+                <div>
+                    <h2 class="text-xs text-slate-400 font-mono">WORKSPACE AREA</h2>
+                    <p class="text-sm font-bold text-slate-200">Co-Working Tech Hub</p>
+                </div>
+                <div class="h-6 w-px bg-slate-800"></div>
+                <div>
+                    <h2 class="text-xs text-slate-400 font-mono">CONTROLS</h2>
+                    <p class="text-xs text-amber-500 font-semibold flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span class="flex items-center gap-0.5 whitespace-nowrap">
+                            <kbd class="px-1 py-0.5 bg-slate-800 rounded border border-slate-700">W</kbd><kbd class="px-1 py-0.5 bg-slate-800 rounded border border-slate-700">A</kbd><kbd class="px-1 py-0.5 bg-slate-800 rounded border border-slate-700">S</kbd><kbd class="px-1 py-0.5 bg-slate-800 rounded border border-slate-700">D</kbd> Move
+                        </span>
+                        <span class="whitespace-nowrap flex items-center gap-1">
+                            <kbd class="px-2 py-0.5 bg-slate-800 rounded border border-slate-700">SPACE</kbd> Interact
+                        </span>
+                        <span class="whitespace-nowrap flex items-center gap-1 text-slate-400">
+                            <i class="fa-solid fa-computer-mouse"></i> Click to Move/Interact
+                        </span>
+                    </p>
+                </div>
+                <div class="h-6 w-px bg-slate-800"></div>
+                <div>
+                    <h2 class="text-xs text-slate-400 font-mono">COMPLETED</h2>
+                    <p id="total-progress-percent" class="text-sm font-bold text-emerald-400">0%</p>
+                </div>
+            </div>
+
+            <!-- Main Canvas Viewport -->
+            <div class="flex-1 w-full h-full relative" id="canvas-container">
+                <canvas id="game-canvas" class="block w-full h-full bg-slate-950"></canvas>
+            </div>
+
+            <!-- Virtual Controls Overlay (Visible only on touch/mobile viewports) -->
+            <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end pointer-events-none z-10 md:hidden">
+                <!-- Virtual Joystick Zone -->
+                <div class="pointer-events-auto bg-slate-900/90 p-3 rounded-full border border-slate-800 shadow-2xl flex items-center justify-center joystick-zone" id="touch-joystick-container">
+                    <div class="relative w-28 h-28 bg-slate-950 rounded-full flex items-center justify-center border border-slate-700/50">
+                        <div id="touch-joystick-knob" class="absolute w-12 h-12 bg-amber-500 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.5)] cursor-pointer flex items-center justify-center transition-all duration-75">
+                            <i class="fa-solid fa-arrows-to-dot text-slate-950"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <div class="pointer-events-auto">
+                    <button id="touch-action-btn" class="w-20 h-20 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 rounded-full border-4 border-slate-900 shadow-2xl flex flex-col items-center justify-center text-slate-950 transition-transform active:scale-95">
+                        <i class="fa-solid fa-bolt text-2xl mb-0.5"></i>
+                        <span class="text-[10px] font-bold uppercase tracking-wider">Interact</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Side: Diagnostics & Audio Upgrades -->
+        <section class="w-full lg:w-80 bg-slate-900/90 border-l border-amber-500/20 p-4 flex flex-col justify-between space-y-4 z-10 max-h-[35vh] lg:max-h-none overflow-y-auto">
+            
+            <!-- Audio Controller (Pure Web Audio synthesizer) -->
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                <h4 class="text-sm font-semibold tracking-wider text-slate-300 uppercase mb-3 flex items-center justify-between">
+                    <span><i class="fa-solid fa-volume-high text-amber-500 mr-2"></i> Audio Modulator</span>
+                    <button id="synth-mute-btn" class="text-xs bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded border border-slate-700 text-slate-300">
+                        <i class="fa-solid fa-volume-xmark mr-1"></i> Mute
+                    </button>
+                </h4>
+                <p class="text-xs text-slate-400 mb-3 leading-relaxed">
+                    Taygedo synthesizes custom chiptunes & warning warnings dynamically via the HTML5 Web Audio API.
+                </p>
+                <div class="space-y-2">
+                    <button id="test-beep-btn" class="w-full bg-slate-900 hover:bg-slate-800 text-amber-400 font-semibold border border-amber-500/30 text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                        <i class="fa-solid fa-wave-square"></i> Diagnose Synth Waveform
+                    </button>
+                </div>
+            </div>
+
+            <!-- Map Legend / Interactive Help -->
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                <h4 class="text-sm font-semibold tracking-wider text-slate-300 uppercase flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info text-amber-500"></i> Environment Legend
+                </h4>
+                <div class="space-y-2 text-xs">
+                    <div class="flex items-center gap-3">
+                        <div class="w-6 h-6 rounded-md bg-amber-500/20 border border-amber-500 flex items-center justify-center">
+                            <div class="w-2.5 h-2.5 bg-amber-500 rounded-sm"></div>
+                        </div>
+                        <div>
+                            <span class="font-semibold text-slate-200">Taygedo Robot</span>
+                            <p class="text-[10px] text-slate-400">Retro Monitor Unit</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-6 h-6 rounded-md bg-indigo-500/20 border border-indigo-500 flex items-center justify-center text-indigo-400">
+                            <i class="fa-solid fa-code text-[10px]"></i>
+                        </div>
+                        <div>
+                            <span class="font-semibold text-slate-200">Coding Desk</span>
+                            <p class="text-[10px] text-slate-400">Optimize local development environments</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-6 h-6 rounded-md bg-emerald-500/20 border border-emerald-500 flex items-center justify-center text-emerald-400">
+                            <i class="fa-solid fa-server text-[10px]"></i>
+                        </div>
+                        <div>
+                            <span class="font-semibold text-slate-200">Server Cabinets</span>
+                            <p class="text-[10px] text-slate-400">Calibrate database server connections</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-6 h-6 rounded-md bg-teal-500/20 border border-teal-500 flex items-center justify-center text-teal-400">
+                            <i class="fa-solid fa-seedling text-[10px]"></i>
+                        </div>
+                        <div>
+                            <span class="font-semibold text-slate-200">Office Plants</span>
+                            <p class="text-[10px] text-slate-400">Water potted green setups around corridors</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mini stats / Info of image references -->
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-500 leading-snug space-y-1">
+                <p class="text-slate-400 font-bold uppercase tracking-wider mb-1">Concept Architecture Details</p>
+                <p>Character Reference: watermarked_img_14938767985521641107.png</p>
+                <p>Environment Inspiration: image_227f4b.jpg</p>
+                <p>Current Coordinate: [<span id="coord-x" class="text-amber-500">0</span>, <span id="coord-y" class="text-amber-500">0</span>]</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Success Modal Popup -->
+    <div id="success-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-amber-500 rounded-2xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl relative overflow-hidden">
+            <div class="absolute -top-10 -left-10 w-24 h-24 bg-amber-500/10 rounded-full blur-xl"></div>
+            <div class="absolute -bottom-10 -right-10 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl"></div>
+            
+            <div class="w-16 h-16 bg-emerald-500/20 text-emerald-400 border border-emerald-500 rounded-full flex items-center justify-center mx-auto text-3xl shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                <i class="fa-solid fa-circle-check animate-bounce"></i>
+            </div>
+            
+            <h3 class="text-2xl font-bold text-amber-400 tracking-wide">WORKSPACE FULLY OPTIMIZED!</h3>
+            <p class="text-sm text-slate-300 leading-relaxed">
+                Unit T-01 (Taygedo) has completed all active queue items successfully. The workspace servers are green, the codebases are refactored, and the plants are properly nourished!
+            </p>
+            
+            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs text-slate-400 flex justify-around">
+                <div>
+                    <p class="text-slate-500">Battery Reserve</p>
+                    <p class="text-lg font-bold text-emerald-400">92%</p>
+                </div>
+                <div class="w-px bg-slate-800"></div>
+                <div>
+                    <p class="text-slate-500">CPU Temperature</p>
+                    <p class="text-lg font-bold text-emerald-400">38°C</p>
+                </div>
+            </div>
+
+            <button id="modal-close-btn" class="w-full bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold py-3 px-6 rounded-xl transition-all shadow-[0_4px_15px_rgba(245,158,11,0.3)]">
+                Return to Workspace Grid
+            </button>
+        </div>
+    </div>
+
+    <!-- Script Environment Setup -->
+    <script>
+        // Sound controller using pure Web Audio API without external URLs
+        const SoundSystem = {
+            ctx: null,
+            isMuted: false,
+
+            init() {
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                } catch (e) {
+                    console.warn("Web Audio API not supported on this browser.");
+                }
+            },
+
+            toggleMute() {
+                this.isMuted = !this.isMuted;
+                const muteBtn = document.getElementById('synth-mute-btn');
+                if (this.isMuted) {
+                    muteBtn.innerHTML = `<i class="fa-solid fa-volume-xmark mr-1"></i> Unmute`;
+                    muteBtn.classList.replace('text-slate-300', 'text-rose-400');
+                } else {
+                    muteBtn.innerHTML = `<i class="fa-solid fa-volume-high mr-1"></i> Mute`;
+                    muteBtn.classList.replace('text-rose-400', 'text-slate-300');
+                    if (this.ctx && this.ctx.state === 'suspended') {
+                        this.ctx.resume();
+                    }
+                }
+            },
+
+            playTone(freq, type, duration, slideTo = 0) {
+                if (this.isMuted) return;
+                if (!this.ctx) this.init();
+                if (!this.ctx) return;
+
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                if (slideTo > 0) {
+                    osc.frequency.exponentialRampToValueAtTime(slideTo, this.ctx.currentTime + duration);
+                }
+
+                gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+
+            playActionTick() {
+                this.playTone(600, 'sine', 0.1, 900);
+            },
+
+            playActionComplete() {
+                this.playTone(400, 'triangle', 0.15);
+                setTimeout(() => this.playTone(800, 'triangle', 0.25), 100);
+            },
+
+            playLevelComplete() {
+                const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    setTimeout(() => {
+                        this.playTone(freq, 'triangle', 0.2);
+                    }, idx * 120);
+                });
+            },
+
+            playCollision() {
+                this.playTone(150, 'sawtooth', 0.15, 80);
+            }
+        };
+
+        // UI Event Listeners for Synth
+        document.getElementById('synth-mute-btn').addEventListener('click', () => SoundSystem.toggleMute());
+        document.getElementById('test-beep-btn').addEventListener('click', () => {
+            SoundSystem.playTone(440, 'sine', 0.3);
+            setTimeout(() => SoundSystem.playTone(880, 'triangle', 0.2), 150);
+        });
+
+        // Dimensions and Grid configuration
+        const GRID_SIZE = 40; // Pixels per grid tile
+        const MAP_TILES_X = 50; 
+        const MAP_TILES_Y = 50;
+        const MAP_WIDTH = MAP_TILES_X * GRID_SIZE;
+        const MAP_HEIGHT = MAP_TILES_Y * GRID_SIZE;
+
+        // Custom assets, layout grids & interaction zones
+        const WORKSPACE_MAP = {
+            walls: [],
+            furniture: [],
+            interactiveZones: [
+                // Coding Desks (Goal: Refactor)
+                { id: 'coding-1', type: 'coding', x: 200, y: 300, width: 80, height: 60, status: 'pending', progress: 0 },
+                { id: 'coding-2', type: 'coding', x: 700, y: 300, width: 80, height: 60, status: 'pending', progress: 0 },
+                { id: 'coding-3', type: 'coding', x: 1200, y: 500, width: 80, height: 60, status: 'pending', progress: 0 },
+                
+                // Server Cabinets (Goal: Fix connections)
+                { id: 'server-1', type: 'servers', x: 1000, y: 200, width: 100, height: 60, status: 'pending', progress: 0 },
+                { id: 'server-2', type: 'servers', x: 450, y: 800, width: 100, height: 60, status: 'pending', progress: 0 },
+                
+                // Office Plants (Goal: Nourish)
+                { id: 'plant-1', type: 'plants', x: 100, y: 150, width: 40, height: 40, status: 'pending', progress: 0 },
+                { id: 'plant-2', type: 'plants', x: 800, y: 700, width: 40, height: 40, status: 'pending', progress: 0 },
+                { id: 'plant-3', type: 'plants', x: 1400, y: 150, width: 40, height: 40, status: 'pending', progress: 0 }
+            ],
+            ambientRobots: [
+                { x: 300, y: 180, targetX: 300, targetY: 180, delay: 0, timer: 0 },
+                { x: 900, y: 600, targetX: 900, targetY: 600, delay: 0, timer: 0 }
+            ]
+        };
+
+        // Populate Workspace Layout Walls and Floor Obstacles to make it cozy
+        function initializeEnvironment() {
+            // Room divider walls
+            WORKSPACE_MAP.walls.push({ x: 0, y: 0, width: MAP_WIDTH, height: 40 }); // Top boundary
+            WORKSPACE_MAP.walls.push({ x: 0, y: 0, width: 40, height: MAP_HEIGHT }); // Left boundary
+            WORKSPACE_MAP.walls.push({ x: 0, y: MAP_HEIGHT - 40, width: MAP_WIDTH, height: 40 }); // Bottom boundary
+            WORKSPACE_MAP.walls.push({ x: MAP_WIDTH - 40, y: 0, width: 40, height: MAP_HEIGHT }); // Right boundary
+
+            // Center Cubicle Walls
+            WORKSPACE_MAP.walls.push({ x: 600, y: 40, width: 30, height: 400 });
+            WORKSPACE_MAP.walls.push({ x: 600, y: 600, width: 30, height: 500 });
+            WORKSPACE_MAP.walls.push({ x: 1000, y: 400, width: 400, height: 30 });
+            
+            // Server room fencing / glass wall
+            WORKSPACE_MAP.walls.push({ x: 900, y: 100, width: 20, height: 300 });
+
+            // Ambient Obstacles (Desks, sofas, coffee table)
+            WORKSPACE_MAP.furniture.push({ x: 350, y: 400, width: 120, height: 80, name: 'Main Conference Table', color: '#1e293b' });
+            WORKSPACE_MAP.furniture.push({ x: 1100, y: 800, width: 160, height: 100, name: 'Sofa Lounge Zone', color: '#334155' });
+        }
+        initializeEnvironment();
+
+        // Robot Agent Status variables
+        const player = {
+            x: 120,
+            y: 200,
+            radius: 20,
+            speed: 4,
+            vx: 0,
+            vy: 0,
+            angle: 0,
+            targetAngle: 0,
+            color: '#a16207', // Copper brown body
+            energy: 85,
+            temp: 42,
+            activeZone: null,
+            isInteracting: false,
+            frameTimer: 0,
+            isGlitched: false
+        };
+
+        // Camera Object
+        const camera = {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            follow(target) {
+                this.x = target.x - this.width / 2;
+                this.y = target.y - this.height / 2;
+                // Clamp camera inside map bounds
+                this.x = Math.max(0, Math.min(this.x, MAP_WIDTH - this.width));
+                this.y = Math.max(0, Math.min(this.y, MAP_HEIGHT - this.height));
+            }
+        };
+
+        // Keyboard tracking state
+        const keys = {
+            w: false, a: false, s: false, d: false,
+            ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
+            Space: false
+        };
+
+        window.addEventListener('keydown', (e) => {
+            const code = e.code === 'Space' ? 'Space' : e.key;
+            if (code in keys) {
+                keys[code] = true;
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                } else {
+                    playerTarget = null;
+                    pendingInteractZone = null;
+                    autoInteractTarget = null;
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const code = e.code === 'Space' ? 'Space' : e.key;
+            if (code in keys) keys[code] = false;
+        });
+
+        const joystickKnob = document.getElementById('touch-joystick-knob');
+        const joystickContainer = document.getElementById('touch-joystick-container');
+        const actionBtn = document.getElementById('touch-action-btn');
+        
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let joystickActive = false;
+        let joystickVector = { x: 0, y: 0 };
+
+        joystickContainer.addEventListener('touchstart', (e) => {
+            joystickActive = true;
+            const touch = e.touches[0];
+            const rect = joystickContainer.getBoundingClientRect();
+            touchStartX = rect.left + rect.width / 2;
+            touchStartY = rect.top + rect.height / 2;
+        });
+
+        joystickContainer.addEventListener('touchmove', (e) => {
+            if (!joystickActive) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const dx = touch.clientX - touchStartX;
+            const dy = touch.clientY - touchStartY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const maxRadius = 40; // Joystick max boundary displacement
+
+            if (distance === 0) {
+                joystickVector = { x: 0, y: 0 };
+                joystickKnob.style.transform = 'translate(0px, 0px)';
+            } else {
+                const angle = Math.atan2(dy, dx);
+                const clampedDist = Math.min(distance, maxRadius);
+                const rx = Math.cos(angle) * clampedDist;
+                const ry = Math.sin(angle) * clampedDist;
+                joystickKnob.style.transform = `translate(${rx}px, ${ry}px)`;
+                
+                // Set movement vectors
+                joystickVector = {
+                    x: rx / maxRadius,
+                    y: ry / maxRadius
+                };
+            }
+        });
+
+        const resetJoystick = () => {
+            joystickActive = false;
+            joystickVector = { x: 0, y: 0 };
+            joystickKnob.style.transform = 'translate(0px, 0px)';
+        };
+
+        joystickContainer.addEventListener('touchend', resetJoystick);
+        joystickContainer.addEventListener('touchcancel', resetJoystick);
+
+        // Mobile Action Button
+        actionBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys.Space = true;
+        });
+        actionBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            keys.Space = false;
+        });
+
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvas-container');
+
+        function resizeCanvas() {
+            canvas.width = canvasContainer.clientWidth;
+            canvas.height = canvasContainer.clientHeight;
+            camera.width = canvas.width;
+            camera.height = canvas.height;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function getWorldCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            // Guard against zero rect dimensions (canvas not yet laid out)
+            const rw = rect.width  || canvas.width  || 1;
+            const rh = rect.height || canvas.height || 1;
+            return {
+                x: (e.clientX - rect.left) * (canvas.width / rw) + camera.x,
+                y: (e.clientY - rect.top)  * (canvas.height / rh) + camera.y
+            };
+        }
+
+        // Mouse hover — change cursor and track hovered zone
+        canvas.addEventListener('mousemove', (e) => {
+            const { x: worldX, y: worldY } = getWorldCoords(e);
+            hoveredZone = null;
+            for (const zone of WORKSPACE_MAP.interactiveZones) {
+                if (worldX >= zone.x && worldX <= zone.x + zone.width &&
+                    worldY >= zone.y && worldY <= zone.y + zone.height) {
+                    hoveredZone = zone;
+                    break;
+                }
+            }
+            canvas.style.cursor = hoveredZone ? 'pointer' : 'default';
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            hoveredZone = null;
+            canvas.style.cursor = 'default';
+        });
+
+        // Click — move to zone (and auto-interact on arrival), or walk to open space
+        canvas.addEventListener('click', (e) => {
+            const { x: worldX, y: worldY } = getWorldCoords(e);
+
+            for (const zone of WORKSPACE_MAP.interactiveZones) {
+                if (worldX >= zone.x && worldX <= zone.x + zone.width &&
+                    worldY >= zone.y && worldY <= zone.y + zone.height) {
+                    const cx = zone.x + zone.width / 2;
+                    const cy = zone.y + zone.height / 2;
+                    const dist = Math.hypot(player.x - cx, player.y - cy);
+                    if (dist < 70 && zone.status !== 'completed') {
+                        // Already in range — start sustained auto-interact
+                        autoInteractTarget = zone;
+                    } else if (zone.status !== 'completed') {
+                        // Walk there, then auto-interact on arrival
+                        playerTarget = { x: cx, y: cy };
+                        pendingInteractZone = zone;
+                    } else {
+                        playerTarget = { x: cx, y: cy };
+                    }
+                    return;
+                }
+            }
+            // Open space click — cancel any pending interact and just walk
+            autoInteractTarget = null;
+            pendingInteractZone = null;
+            playerTarget = { x: worldX, y: worldY };
+        });
+
+        function checkCollision(x, y, radius) {
+            // Check boundary and wall collisions
+            for (const wall of WORKSPACE_MAP.walls) {
+                if (x + radius > wall.x && x - radius < wall.x + wall.width &&
+                    y + radius > wall.y && y - radius < wall.y + wall.height) {
+                    return true;
+                }
+            }
+            // Check furniture collisions
+            for (const item of WORKSPACE_MAP.furniture) {
+                if (x + radius > item.x && x - radius < item.x + item.width &&
+                    y + radius > item.y && y - radius < item.y + item.height) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        let hoveredZone = null;
+        let playerTarget = null;
+        let autoInteractTarget = null;
+        let pendingInteractZone = null;
+
+        function updateGame() {
+            // 1. Calculate Move Vector
+            let mx = 0;
+            let my = 0;
+
+            if (keys.w || keys.ArrowUp) my -= 1;
+            if (keys.s || keys.ArrowDown) my += 1;
+            if (keys.a || keys.ArrowLeft) mx -= 1;
+            if (keys.d || keys.ArrowRight) mx += 1;
+
+            // Apply touch joystick input if keyboard is idle
+            if (mx === 0 && my === 0 && joystickActive) {
+                mx = joystickVector.x;
+                my = joystickVector.y;
+            }
+
+            // Auto-walk toward click target when no manual input
+            if (mx === 0 && my === 0 && playerTarget) {
+                const dx = playerTarget.x - player.x;
+                const dy = playerTarget.y - player.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist < 6) {
+                    playerTarget = null;
+                    // Arrived — start auto-interacting with pending zone if set
+                    if (pendingInteractZone && pendingInteractZone.status !== 'completed') {
+                        autoInteractTarget = pendingInteractZone;
+                        pendingInteractZone = null;
+                    }
+                } else {
+                    mx = dx / dist;
+                    my = dy / dist;
+                }
+            }
+
+            // Normalize vector if diagonal keyboard movement
+            const magnitude = Math.sqrt(mx * mx + my * my);
+            if (magnitude > 0) {
+                mx = mx / magnitude;
+                my = my / magnitude;
+                
+                // Target angle
+                player.targetAngle = Math.atan2(my, mx);
+                
+                // Rotational inertia / interpolation
+                let angleDiff = player.targetAngle - player.angle;
+                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                player.angle += angleDiff * 0.15;
+            }
+
+            // Move step & collision check
+            const speedMultiplier = player.isInteracting ? 0.3 : 1.0;
+            const stepX = mx * player.speed * speedMultiplier;
+            const stepY = my * player.speed * speedMultiplier;
+
+            if (stepX !== 0 || stepY !== 0) {
+                let colX = checkCollision(player.x + stepX, player.y, player.radius);
+                let colY = checkCollision(player.x, player.y + stepY, player.radius);
+
+                if (!colX) player.x += stepX;
+                if (!colY) player.y += stepY;
+
+                if (colX || colY) {
+                    if (Math.random() < 0.05) SoundSystem.playCollision();
+                }
+
+                // Smoothly modulate battery and CPU temps with movement
+                player.energy = Math.max(10, player.energy - 0.001);
+                player.temp = Math.min(85, 42 + Math.sin(Date.now() / 20000) * 5 + (stepX !== 0 ? 3 : 0));
+                
+                // Dispatch updates to top HUD
+                document.getElementById('header-battery').innerText = `${Math.floor(player.energy)}%`;
+                document.getElementById('header-temp').innerText = `${Math.floor(player.temp)}°C`;
+            }
+
+            // Update user interface position diagnostics
+            document.getElementById('coord-x').innerText = Math.floor(player.x);
+            document.getElementById('coord-y').innerText = Math.floor(player.y);
+
+            // 2. Camera tracking
+            camera.follow(player);
+
+            // 3. Scan for nearby interactive zones
+            player.activeZone = null;
+            let closestZone = null;
+            let minDist = 70; // Interaction radius threshold
+
+            for (const zone of WORKSPACE_MAP.interactiveZones) {
+                const centerZoneX = zone.x + zone.width / 2;
+                const centerZoneY = zone.y + zone.height / 2;
+                const dist = Math.sqrt(Math.pow(player.x - centerZoneX, 2) + Math.pow(player.y - centerZoneY, 2));
+                if (dist < minDist) {
+                    closestZone = zone;
+                    minDist = dist;
+                }
+            }
+
+            if (closestZone) {
+                player.activeZone = closestZone;
+                // Stop auto-interact if player walked away from the targeted zone
+                if (autoInteractTarget && autoInteractTarget !== closestZone) {
+                    autoInteractTarget = null;
+                }
+                const isInteracting = keys.Space || autoInteractTarget === closestZone;
+                if (isInteracting) {
+                    player.isInteracting = true;
+                    document.getElementById('agent-state').innerText = "BUSY";
+                    document.getElementById('agent-state').className = "font-bold text-amber-500 animate-pulse";
+
+                    if (closestZone.status !== 'completed') {
+                        closestZone.progress = Math.min(100, closestZone.progress + 0.5);
+
+                        // Every fractional step play light ticking synth
+                        if (Math.floor(closestZone.progress * 2) % 15 === 0) {
+                            SoundSystem.playActionTick();
+                        }
+
+                        if (closestZone.progress >= 100) {
+                            closestZone.status = 'completed';
+                            autoInteractTarget = null;
+                            SoundSystem.playActionComplete();
+                            updateActiveTaskTracker();
+                            writeLog(`Successfully resolved ${closestZone.type} module [${closestZone.id}].`);
+                        }
+                    }
+                } else {
+                    player.isInteracting = false;
+                    document.getElementById('agent-state').innerText = closestZone.status === 'completed' ? "FINISHED" : "IDLE";
+                    document.getElementById('agent-state').className = closestZone.status === 'completed' ? "font-bold text-emerald-400" : "font-bold text-cyan-400";
+                }
+            } else {
+                player.isInteracting = false;
+                document.getElementById('agent-state').innerText = "HAPPY";
+                document.getElementById('agent-state').className = "font-bold text-cyan-400";
+            }
+
+            // 4. Update Ambient Robot paths to keep the top-down perspective vibrant
+            for (const robot of WORKSPACE_MAP.ambientRobots) {
+                robot.timer += 1;
+                // Pick new walk target every few seconds
+                if (robot.timer > 150) {
+                    robot.timer = 0;
+                    robot.targetX = robot.x + (Math.random() - 0.5) * 150;
+                    robot.targetY = robot.y + (Math.random() - 0.5) * 150;
+                    
+                    // Keep them inside safe map regions
+                    robot.targetX = Math.max(80, Math.min(robot.targetX, MAP_WIDTH - 80));
+                    robot.targetY = Math.max(80, Math.min(robot.targetY, MAP_HEIGHT - 80));
+                }
+                
+                // Move step
+                robot.x += (robot.targetX - robot.x) * 0.02;
+                robot.y += (robot.targetY - robot.y) * 0.02;
+            }
+        }
+
+        // Drawing utilities
+        function drawGrid() {
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 0.5;
+            
+            // Calculate starting and ending tile columns visible in the viewport
+            const startX = Math.floor(camera.x / GRID_SIZE) * GRID_SIZE;
+            const endX = Math.ceil((camera.x + camera.width) / GRID_SIZE) * GRID_SIZE;
+            const startY = Math.floor(camera.y / GRID_SIZE) * GRID_SIZE;
+            const endY = Math.ceil((camera.y + camera.height) / GRID_SIZE) * GRID_SIZE;
+
+            for (let x = startX; x < endX; x += GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(x - camera.x, 0);
+                ctx.lineTo(x - camera.x, camera.height);
+                ctx.stroke();
+            }
+            for (let y = startY; y < endY; y += GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(0, y - camera.y);
+                ctx.lineTo(camera.width, y - camera.y);
+                ctx.stroke();
+            }
+        }
+
+        function drawWallsAndFloor() {
+            // Background workspace carpet base color
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, camera.width, camera.height);
+
+            // Draw rugs & workspace floor accents
+            ctx.fillStyle = '#1e1b4b'; // Lounge color tint
+            ctx.fillRect(1050 - camera.x, 750 - camera.y, 250, 180);
+
+            ctx.fillStyle = '#1c1917'; // Server room server tint
+            ctx.fillRect(920 - camera.x, 100 - camera.y, 400, 300);
+
+            // Outer limits dark zones
+            ctx.fillStyle = '#020617';
+            // Draw walls
+            for (const wall of WORKSPACE_MAP.walls) {
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(wall.x - camera.x, wall.y - camera.y, wall.width, wall.height);
+                // Highlight yellow stripe for construction lines
+                ctx.fillStyle = '#d97706';
+                ctx.fillRect(wall.x - camera.x, wall.y - camera.y, wall.width, 3);
+            }
+
+            // Draw Furniture
+            for (const item of WORKSPACE_MAP.furniture) {
+                // Table body
+                ctx.fillStyle = item.color;
+                ctx.fillRect(item.x - camera.x, item.y - camera.y, item.width, item.height);
+                // Boarder outline
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(item.x - camera.x, item.y - camera.y, item.width, item.height);
+                
+                // Label desks
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '10px Space Grotesk';
+                ctx.fillText(item.name, item.x + 8 - camera.x, item.y + 15 - camera.y);
+            }
+        }
+
+        function drawInteractiveZones() {
+            for (const zone of WORKSPACE_MAP.interactiveZones) {
+                // Select theme styles based on interactive types
+                let colorBase, icon, label;
+                switch (zone.type) {
+                    case 'coding':
+                        colorBase = { fill: '81, 100, 241', stroke: '#6366f1' };
+                        icon = '';
+                        label = 'Coding Desk';
+                        break;
+                    case 'servers':
+                        colorBase = { fill: '16, 185, 129', stroke: '#10b981' };
+                        icon = '';
+                        label = 'Server Cabinet';
+                        break;
+                    case 'plants':
+                        colorBase = { fill: '20, 184, 166', stroke: '#14b8a6' };
+                        icon = '🌱';
+                        label = 'Office Flora';
+                        break;
+                }
+
+                // Draw Interactive Outline glow rings
+                const centerX = zone.x + zone.width / 2;
+                const centerY = zone.y + zone.height / 2;
+                
+                ctx.fillStyle = `rgba(${colorBase.fill}, 0.08)`;
+                ctx.fillRect(zone.x - camera.x, zone.y - camera.y, zone.width, zone.height);
+
+                ctx.strokeStyle = colorBase.stroke;
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(zone.x - camera.x, zone.y - camera.y, zone.width, zone.height);
+
+                // Small flashing status circle indicator
+                ctx.beginPath();
+                ctx.arc(zone.x + 10 - camera.x, zone.y + 10 - camera.y, 4, 0, Math.PI * 2);
+                ctx.fillStyle = zone.status === 'completed' ? '#10b981' : '#f59e0b';
+                ctx.fill();
+
+                // Draw interactive labels/tasks
+                ctx.fillStyle = '#f8fafc';
+                ctx.font = 'bold 11px monospace';
+                ctx.fillText(label, zone.x + 22 - camera.x, zone.y + 14 - camera.y);
+
+                // Drawing individual furniture setups inside zones
+                if (zone.type === 'coding') {
+                    // Draw keyboard and monitor top-down
+                    ctx.fillStyle = '#334155';
+                    ctx.fillRect(zone.x + 15 - camera.x, zone.y + 25 - camera.y, 50, 10); // keyboard
+                    ctx.fillStyle = '#020617';
+                    ctx.fillRect(zone.x + 20 - camera.x, zone.y + 42 - camera.y, 40, 6); // Monitor bottom stand
+                } else if (zone.type === 'servers') {
+                    // Draw rack lines
+                    ctx.fillStyle = '#020617';
+                    ctx.fillRect(zone.x + 10 - camera.x, zone.y + 20 - camera.y, zone.width - 20, zone.height - 30);
+                    // LED flashing patterns
+                    for (let l = 0; l < 4; l++) {
+                        ctx.beginPath();
+                        ctx.arc(zone.x + 20 + (l * 18) - camera.x, zone.y + 35 - camera.y, 2, 0, Math.PI*2);
+                        ctx.fillStyle = (Math.random() < 0.3) ? '#ef4444' : '#22c55e';
+                        ctx.fill();
+                    }
+                } else if (zone.type === 'plants') {
+                    // Draw flower pot
+                    ctx.beginPath();
+                    ctx.arc(centerX - camera.x, centerY - camera.y, 8, 0, Math.PI * 2);
+                    ctx.fillStyle = '#78350f';
+                    ctx.fill();
+                    // Plant leaves
+                    ctx.beginPath();
+                    ctx.arc(centerX - 4 - camera.x, centerY - 4 - camera.y, 7, 0, Math.PI * 2);
+                    ctx.arc(centerX + 5 - camera.x, centerY + 3 - camera.y, 6, 0, Math.PI * 2);
+                    ctx.fillStyle = zone.status === 'completed' ? '#059669' : '#047857';
+                    ctx.fill();
+                }
+
+                // Hover glow highlight
+                if (zone === hoveredZone) {
+                    ctx.save();
+                    ctx.shadowColor = '#f59e0b';
+                    ctx.shadowBlur = 18;
+                    ctx.strokeStyle = '#f59e0b';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(zone.x - 5 - camera.x, zone.y - 5 - camera.y, zone.width + 10, zone.height + 10);
+                    ctx.restore();
+                    // Tooltip above zone
+                    const tip = zone.status === 'completed' ? '✓ Done' : 'Click to interact';
+                    const tx = zone.x + zone.width / 2 - camera.x;
+                    const ty = zone.y - 24 - camera.y;
+                    ctx.font = 'bold 10px Space Grotesk';
+                    const tw = ctx.measureText(tip).width + 10;
+                    ctx.fillStyle = 'rgba(15,23,42,0.9)';
+                    ctx.fillRect(tx - tw / 2, ty - 11, tw, 14);
+                    ctx.fillStyle = zone.status === 'completed' ? '#10b981' : '#f59e0b';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(tip, tx, ty);
+                    ctx.textAlign = 'left';
+                }
+
+                // If zone in progress, render dynamic floating progress bar
+                if (zone.progress > 0 && zone.progress < 100) {
+                    ctx.fillStyle = '#1e293b';
+                    ctx.fillRect(zone.x - camera.x, zone.y - 15 - camera.y, zone.width, 6);
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.fillRect(zone.x - camera.x, zone.y - 15 - camera.y, (zone.width * zone.progress) / 100, 6);
+                }
+            }
+        }
+
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(player.x - camera.x, player.y - camera.y);
+            ctx.rotate(player.angle);
+
+            // 1. Draw copper retro robotic body
+            ctx.beginPath();
+            ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+            ctx.fillStyle = player.color;
+            ctx.fill();
+            ctx.strokeStyle = '#d97706';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            // 2. Draw retro monitor shoulders/brackets (inspired by watermarked_img_14938767985521641107.png)
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(-8, -player.radius - 4, 16, 6);
+
+            // 3. Draw monitor head offset pointing forward (right in rotation grid)
+            // Head is rounded box
+            ctx.fillStyle = '#5c4033'; // Deep wood/brown bezel
+            ctx.fillRect(2, -18, 18, 36);
+            ctx.strokeStyle = '#d97706';
+            ctx.strokeRect(2, -18, 18, 36);
+
+            // Monitor Teal Screen face display
+            ctx.fillStyle = '#2dd4bf';
+            ctx.fillRect(8, -13, 10, 26);
+
+            // 4. Draw cartoonish dog pixel face on monitor screen
+            // Eyes
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(13, -7, 2, 2);
+            ctx.fillRect(13, 5, 2, 2);
+            // Snout/nose
+            ctx.fillStyle = '#090d16';
+            ctx.fillRect(15, -1, 2, 2);
+
+            // Antenna details
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(-10, 0);
+            ctx.lineTo(-24, -8);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(-24, -8, 2, 0, Math.PI*2);
+            ctx.fillStyle = '#f59e0b';
+            ctx.fill();
+
+            ctx.restore();
+
+            // Action Alert Interaction prompts
+            if (player.activeZone) {
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(player.x - 60 - camera.x, player.y - 48 - camera.y, 120, 20);
+                ctx.strokeStyle = '#f59e0b';
+                ctx.strokeRect(player.x - 60 - camera.x, player.y - 48 - camera.y, 120, 20);
+
+                ctx.fillStyle = '#f59e0b';
+                ctx.font = 'bold 9px Space Grotesk';
+                ctx.textAlign = 'center';
+                const label = player.activeZone.status === 'completed' ? 'RESOLVED' : 'HOLD SPACE';
+                ctx.fillText(label, player.x - camera.x, player.y - 35 - camera.y);
+                ctx.textAlign = 'left'; // reset
+            }
+        }
+
+        function drawAmbientRobots() {
+            for (const bot of WORKSPACE_MAP.ambientRobots) {
+                // Little green companion clean sweeps top-down view
+                ctx.beginPath();
+                ctx.arc(bot.x - camera.x, bot.y - camera.y, 12, 0, Math.PI * 2);
+                ctx.fillStyle = '#334155';
+                ctx.fill();
+                ctx.strokeStyle = '#475569';
+                ctx.stroke();
+
+                // Blinking neon visual sensor
+                ctx.beginPath();
+                ctx.arc(bot.x + 5 - camera.x, bot.y - camera.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = (Math.floor(Date.now() / 400) % 2 === 0) ? '#10b981' : '#020617';
+                ctx.fill();
+            }
+        }
+
+        let hasWon = false;
+
+        function updateActiveTaskTracker() {
+            let codingDone = 0;
+            let serversDone = 0;
+            let plantsDone = 0;
+
+            for (const zone of WORKSPACE_MAP.interactiveZones) {
+                if (zone.status === 'completed') {
+                    if (zone.type === 'coding') codingDone++;
+                    if (zone.type === 'servers') serversDone++;
+                    if (zone.type === 'plants') plantsDone++;
+                }
+            }
+
+            // Sync visual counts
+            document.getElementById('task-coding-status').innerText = `${codingDone}/3`;
+            if (codingDone === 3) document.getElementById('task-coding').className = "p-2.5 rounded-lg border border-emerald-500/30 bg-emerald-950/20 flex justify-between items-center";
+            
+            document.getElementById('task-servers-status').innerText = `${serversDone}/2`;
+            if (serversDone === 2) document.getElementById('task-servers').className = "p-2.5 rounded-lg border border-emerald-500/30 bg-emerald-950/20 flex justify-between items-center";
+            
+            document.getElementById('task-plants-status').innerText = `${plantsDone}/3`;
+            if (plantsDone === 3) document.getElementById('task-plants').className = "p-2.5 rounded-lg border border-emerald-500/30 bg-emerald-950/20 flex justify-between items-center";
+
+            // Total Workspace Progression
+            const totalTasks = WORKSPACE_MAP.interactiveZones.length;
+            const completedCount = codingDone + serversDone + plantsDone;
+            const percentage = Math.floor((completedCount / totalTasks) * 100);
+            document.getElementById('total-progress-percent').innerText = `${percentage}%`;
+
+            if (completedCount === totalTasks && !hasWon) {
+                hasWon = true;
+                handleWinSequence();
+            }
+        }
+
+        function handleWinSequence() {
+            SoundSystem.playLevelComplete();
+            writeLog("🎉 MISSION ACCOMPLISHED! All workspace routines completed successfully.");
+            
+            // Pop success modal
+            setTimeout(() => {
+                document.getElementById('success-modal').classList.remove('hidden');
+            }, 600);
+        }
+
+        document.getElementById('modal-close-btn').addEventListener('click', () => {
+            document.getElementById('success-modal').classList.add('hidden');
+        });
+
+        // Logger system
+        function writeLog(text) {
+            const consoleBox = document.getElementById('log-console');
+            const time = new Date().toTimeString().split(' ')[0];
+            const logItem = document.createElement('p');
+            logItem.className = "text-amber-300";
+            logItem.innerHTML = `<span class="text-slate-500">[${time}]</span> ${text}`;
+            consoleBox.appendChild(logItem);
+            consoleBox.scrollTop = consoleBox.scrollHeight;
+        }
+
+        // Main animation canvas loop
+        function gameLoop() {
+            updateGame();
+
+            // Clear Screen
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw game space elements
+            drawWallsAndFloor();
+            drawGrid();
+            drawInteractiveZones();
+            drawAmbientRobots();
+            drawPlayer();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = function() {
+            // Re-run after CSS/flex layout is fully computed — fixes coordinate mismatch
+            resizeCanvas();
+
+            // Initializing system sound on click to respect browser audio policies
+            document.body.addEventListener('click', () => {
+                if (!SoundSystem.ctx) {
+                    SoundSystem.init();
+                    writeLog("Audio oscillators synced successfully.");
+                }
+            }, { once: true });
+
+            // Start main core simulation loop
+            gameLoop();
+        };
+
+    </script>
+</body>
+</html>

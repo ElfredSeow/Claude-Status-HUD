@@ -339,6 +339,143 @@
   .session-dot.amber { animation: pulse-amber 1.4s ease-in-out infinite; }
   .session-dot.red   { animation: pulse-red   2s   ease-in-out infinite; }
 
+  /* ── Usage stats panel ─────────────────────────────────── */
+  :root {
+    --ease-snap:   cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-inout:  cubic-bezier(0.77, 0, 0.175, 1);
+  }
+
+  .hud-overlay-wrapper {
+    display: inline-flex;
+    flex-direction: column;
+    max-width: 280px;
+    width: 100%;
+  }
+  /* Connected card: round only top corners on the HUD overlay */
+  .hud-overlay-wrapper .hud-overlay {
+    border-radius: 16px 16px 0 0;
+    max-width: 100%;
+  }
+
+  .usage-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 1px solid var(--border2);
+    border-radius: 0 0 16px 16px;
+    padding: 11px 18px 15px;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Subtle inner glow matching hud-overlay::before */
+  .usage-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 0 0 16px 16px;
+    background: linear-gradient(180deg, rgba(255,255,255,.018) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .usage-ph {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+
+  .usage-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 7px;
+  }
+  .usage-row:last-child { margin-bottom: 0; }
+
+  .usage-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-dim);
+    width: 46px;
+    flex-shrink: 0;
+  }
+
+  .usage-track {
+    flex: 1;
+    height: 3px;
+    background: rgba(255,255,255,.07);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .usage-fill {
+    height: 100%;
+    border-radius: 3px;
+    width: 0;
+    /* Specify exact properties — never use transition:all */
+    transition: width 520ms var(--ease-snap),
+                background-color 300ms ease;
+  }
+  .usage-fill.c-green { background: var(--green); }
+  .usage-fill.c-amber { background: var(--amber); }
+  .usage-fill.c-red   { background: var(--red); }
+
+  .usage-val {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: right;
+    width: 60px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    transition: color 300ms ease;
+  }
+  .usage-val.v-amber { color: var(--amber); }
+  .usage-val.v-red   { color: var(--red); }
+
+  /* Usage demo controls */
+  .usage-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: -8px;
+    margin-bottom: 20px;
+    align-items: center;
+  }
+  .usage-ctrl-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    flex-shrink: 0;
+  }
+  .usage-demo-btn {
+    padding: 5px 12px;
+    border-radius: 7px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text-dim);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: .04em;
+    /* Specific properties only */
+    transition: background 120ms ease,
+                border-color 120ms ease,
+                color 120ms ease,
+                transform 160ms var(--ease-snap);
+  }
+  .usage-demo-btn:hover { background: #252b38; color: var(--text); }
+  /* scale on press gives instant tactile feedback */
+  .usage-demo-btn:active { transform: scale(0.97); }
+  .usage-demo-btn.u-green { background: rgba(45,205,95,.12);  border-color: rgba(45,205,95,.4);  color: var(--green); }
+  .usage-demo-btn.u-amber { background: rgba(255,150,0,.12);  border-color: rgba(255,150,0,.4);  color: var(--amber); }
+  .usage-demo-btn.u-red   { background: rgba(235,45,45,.12);  border-color: rgba(235,45,45,.4);  color: var(--red);   }
+
   /* ── Misc ────────────────────────────────────────────────── */
   .section-gap { height: 10px; }
   hr { border: none; border-top: 1px solid var(--border); margin: 36px 0; max-width: 860px; margin-left: auto; margin-right: auto; }
@@ -359,20 +496,52 @@
     <button class="demo-btn" onclick="setSingle('red')">● Needs approval</button>
   </div>
 
+  <div class="usage-controls" id="usage-controls">
+    <span class="usage-ctrl-label">Usage —</span>
+    <button class="usage-demo-btn u-green" data-state="comfortable" onclick="setUsage('comfortable')">Low</button>
+    <button class="usage-demo-btn" data-state="moderate"  onclick="setUsage('moderate')">Moderate</button>
+    <button class="usage-demo-btn" data-state="high"      onclick="setUsage('high')">High</button>
+    <button class="usage-demo-btn" data-state="critical"  onclick="setUsage('critical')">Critical</button>
+  </div>
+
   <!-- The floating overlay replica -->
   <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;">
-    <div class="hud-overlay" id="hud-single">
-      <div class="dot green" id="hud-dot"></div>
-      <div class="hud-text">
-        <div class="hud-title" id="hud-title">Waiting for you</div>
-        <div class="hud-detail" id="hud-detail">1 session  ·  Claude-Status-HUD</div>
+
+    <!-- Connected card: traffic light + usage panel -->
+    <div class="hud-overlay-wrapper">
+      <div class="hud-overlay" id="hud-single">
+        <div class="dot green" id="hud-dot"></div>
+        <div class="hud-text">
+          <div class="hud-title" id="hud-title">Waiting for you</div>
+          <div class="hud-detail" id="hud-detail">1 session  ·  Claude-Status-HUD</div>
+        </div>
+      </div>
+
+      <div class="usage-panel">
+        <div class="usage-ph">API Usage</div>
+        <div class="usage-row">
+          <span class="usage-label">Session</span>
+          <div class="usage-track"><div class="usage-fill c-green" id="bar-session"></div></div>
+          <span class="usage-val" id="val-session">—</span>
+        </div>
+        <div class="usage-row">
+          <span class="usage-label">Weekly</span>
+          <div class="usage-track"><div class="usage-fill c-green" id="bar-weekly"></div></div>
+          <span class="usage-val" id="val-weekly">—</span>
+        </div>
+        <div class="usage-row">
+          <span class="usage-label">Monthly</span>
+          <div class="usage-track"><div class="usage-fill c-green" id="bar-monthly"></div></div>
+          <span class="usage-val" id="val-monthly">—</span>
+        </div>
       </div>
     </div>
 
     <div style="flex:1; min-width:220px;">
       <div style="font-size:11px; color:var(--text-faint); line-height:1.8;">
         This is the current floating overlay — always-on-top, draggable, 232 × 70 px.<br>
-        Right-click for monitor snap, keyboard toggle, startup.
+        Right-click for monitor snap, keyboard toggle, startup.<br><br>
+        <span style="color:var(--text-dim);">Usage panel</span> shows your 5-hour rolling session %, weekly active compute hours, and monthly plan consumption — updating live below the traffic light.
       </div>
     </div>
   </div>
@@ -669,6 +838,63 @@ function buildSessions(list) {
     </div>
   `).join('');
 }
+
+/* ── Usage stats demo ─────────────────────────────────── */
+const usageStates = {
+  comfortable: {
+    btnCls: 'u-green',
+    session: { pct: 28, label: '28%',       cls: 'c-green', vcls: ''        },
+    weekly:  { pct: 15, label: '12h / 80h', cls: 'c-green', vcls: ''        },
+    monthly: { pct: 21, label: '21%',        cls: 'c-green', vcls: ''        },
+  },
+  moderate: {
+    btnCls: 'u-amber',
+    session: { pct: 62, label: '62%',       cls: 'c-amber', vcls: 'v-amber' },
+    weekly:  { pct: 47, label: '38h / 80h', cls: 'c-amber', vcls: 'v-amber' },
+    monthly: { pct: 48, label: '48%',        cls: 'c-green', vcls: ''        },
+  },
+  high: {
+    btnCls: 'u-amber',
+    session: { pct: 81, label: '81%',       cls: 'c-red',   vcls: 'v-red'   },
+    weekly:  { pct: 72, label: '58h / 80h', cls: 'c-amber', vcls: 'v-amber' },
+    monthly: { pct: 73, label: '73%',        cls: 'c-amber', vcls: 'v-amber' },
+  },
+  critical: {
+    btnCls: 'u-red',
+    session: { pct: 96, label: '96%',       cls: 'c-red',   vcls: 'v-red'   },
+    weekly:  { pct: 95, label: '76h / 80h', cls: 'c-red',   vcls: 'v-red'   },
+    monthly: { pct: 91, label: '91%',        cls: 'c-red',   vcls: 'v-red'   },
+  },
+};
+
+function setUsage(key) {
+  const u = usageStates[key];
+
+  // Stagger rows 45 ms apart — cascade feels more natural than all-at-once
+  ['session', 'weekly', 'monthly'].forEach((m, i) => {
+    setTimeout(() => {
+      const fill = document.getElementById('bar-' + m);
+      const val  = document.getElementById('val-' + m);
+
+      // Reset to 0 so the width transition always fires (even same state)
+      fill.style.width = '0';
+      fill.getBoundingClientRect(); // force reflow
+      fill.className = 'usage-fill ' + u[m].cls;
+      fill.style.width = u[m].pct + '%';
+
+      val.textContent = u[m].label;
+      val.className   = 'usage-val' + (u[m].vcls ? ' ' + u[m].vcls : '');
+    }, i * 45);
+  });
+
+  // Update button active state
+  document.querySelectorAll('#usage-controls .usage-demo-btn').forEach(btn => {
+    btn.className = 'usage-demo-btn' + (btn.dataset.state === key ? ' ' + u.btnCls : '');
+  });
+}
+
+// Animate bars on first render — delay lets the page paint first
+setTimeout(() => setUsage('comfortable'), 350);
 
 function setScenario(key) {
   const sc = scenarios[key];
