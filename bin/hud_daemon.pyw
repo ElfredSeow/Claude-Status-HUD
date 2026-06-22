@@ -586,6 +586,78 @@ class OfficePopup:
         ]
         return self._canvas.create_polygon(pts, smooth=True, **kw)
 
+    @staticmethod
+    def _draw_robot(c, hcx, hcy, state, scol):
+        """
+        Draw a mini Claude robot centred at (hcx, hcy).
+        Spans roughly 22 px wide × 46 px tall (antenna to body bottom).
+        state: "idle" | "busy" | "permission" | "none"
+        scol:  hex colour for the antenna glow ball
+        """
+        blue      = "#4a5bd0"
+        blue_dark = "#3848b8"
+
+        # ── Antenna ──────────────────────────────────────────
+        c.create_line(hcx, hcy - 11, hcx, hcy - 18,
+                      fill=blue, width=2, capstyle="round")
+        c.create_oval(hcx-4, hcy-22, hcx+4, hcy-14, fill=scol, outline="")
+
+        # ── Head ─────────────────────────────────────────────
+        c.create_oval(hcx-11, hcy-11, hcx+11, hcy+11,
+                      fill=blue, outline=blue_dark, width=1)
+
+        # ── Eyes ─────────────────────────────────────────────
+        if state == "none":
+            # sleepy closed lines
+            c.create_line(hcx-8, hcy-2, hcx-3, hcy-2, fill="white", width=2)
+            c.create_line(hcx+3, hcy-2, hcx+8, hcy-2, fill="white", width=2)
+        elif state == "busy":
+            # wide-open O_O eyes
+            c.create_oval(hcx-9, hcy-6, hcx-2, hcy+1, fill="white", outline="")
+            c.create_oval(hcx-8, hcy-5, hcx-3, hcy,   fill="#1a1a40", outline="")
+            c.create_oval(hcx-7, hcy-5, hcx-6, hcy-4, fill="white",   outline="")
+            c.create_oval(hcx+2, hcy-6, hcx+9, hcy+1, fill="white",   outline="")
+            c.create_oval(hcx+3, hcy-5, hcx+8, hcy,   fill="#1a1a40", outline="")
+            c.create_oval(hcx+4, hcy-5, hcx+5, hcy-4, fill="white",   outline="")
+        else:
+            # normal happy/worried eyes
+            c.create_oval(hcx-9, hcy-5, hcx-2, hcy+2, fill="white", outline="")
+            c.create_oval(hcx-8, hcy-4, hcx-3, hcy+1, fill="#1a1a40", outline="")
+            c.create_oval(hcx-7, hcy-4, hcx-6, hcy-3, fill="white",   outline="")
+            c.create_oval(hcx+2, hcy-5, hcx+9, hcy+2, fill="white",   outline="")
+            c.create_oval(hcx+3, hcy-4, hcx+8, hcy+1, fill="#1a1a40", outline="")
+            c.create_oval(hcx+4, hcy-4, hcx+5, hcy-3, fill="white",   outline="")
+
+        # ── Mouth ────────────────────────────────────────────
+        if state == "idle":
+            # smile arc
+            c.create_arc(hcx-5, hcy+1, hcx+5, hcy+9,
+                         start=200, extent=140,
+                         style="arc", outline="white", width=2)
+        elif state == "busy":
+            # open "O" mouth
+            c.create_oval(hcx-3, hcy+3, hcx+3, hcy+8,
+                          fill="white", outline="")
+        elif state == "permission":
+            # flat worried line
+            c.create_line(hcx-5, hcy+6, hcx+5, hcy+6,
+                          fill="white", width=2, capstyle="round")
+        # "none" → no mouth (sad)
+
+        # ── Body ─────────────────────────────────────────────
+        bx, by = hcx-8, hcy+12
+        c.create_rectangle(bx, by, bx+16, by+14,
+                           fill=blue, outline=blue_dark, width=1)
+        # little "C" badge
+        c.create_text(hcx, by+7, text="C",
+                      font=("Segoe UI", 7, "bold"), fill="white")
+
+        # ── Arms ─────────────────────────────────────────────
+        c.create_rectangle(bx-7, by+1, bx-1, by+9,
+                           fill=blue, outline="")
+        c.create_rectangle(bx+17, by+1, bx+23, by+9,
+                           fill=blue, outline="")
+
     def _draw(self, W, H):
         c = self._canvas
         c.delete("all")
@@ -611,93 +683,121 @@ class OfficePopup:
 
     def _draw_header(self, c, W):
         c.create_line(0, self.HDR_H, W, self.HDR_H, fill=self.C_BORDER)
-        c.create_text(14, 16, text="🏢", font=("Segoe UI Emoji", 14), anchor="w")
-        c.create_text(38, 14, text="Claude's Digital Office",
+        # Office icon — drawn as a simple building silhouette
+        bx, by = 10, 8
+        c.create_rectangle(bx,    by+6, bx+18, by+26, fill="#4a5bd0", outline="")
+        c.create_rectangle(bx+2,  by,   bx+8,  by+6,  fill="#4a5bd0", outline="")
+        c.create_rectangle(bx+10, by+2, bx+16, by+6,  fill="#4a5bd0", outline="")
+        for wx in (bx+2, bx+10):
+            c.create_rectangle(wx, by+10, wx+4, by+16, fill=self.C_BG, outline="")
+        c.create_text(34, 14, text="Claude's Digital Office",
                       font=("Segoe UI", 10, "bold"), anchor="w", fill=self.C_TEXT)
         n     = len(self._sessions)
         badge = f"{n} session{'s' if n != 1 else ''}"
-        c.create_text(38, 30, text=badge,
+        c.create_text(34, 30, text=badge,
                       font=("Segoe UI", 8), anchor="w", fill=self.C_DIM)
-        # overall state indicator top-right
+        # overall state dot + label top-right
         st  = self.ov.state
         col = self.STATE_COL.get(st, self.C_FAINT)
-        lbl = {"idle": "All idle", "busy": "Working", "permission": "Needs approval",
-               "none": "No sessions"}.get(st, st)
-        c.create_oval(W-68, 17, W-60, 25, fill=col, outline="")
-        c.create_text(W-54, 21, text=lbl, font=("Segoe UI", 8, "bold"),
-                      anchor="w", fill=col)
+        lbl = {"idle": "All idle", "busy": "Working",
+               "permission": "Needs approval", "none": "No sessions"}.get(st, st)
+        c.create_oval(W-72, 17, W-63, 26, fill=col, outline="")
+        c.create_text(W-57, 21, text=lbl,
+                      font=("Segoe UI", 8, "bold"), anchor="w", fill=col)
 
     def _draw_card(self, c, x, y, sess):
-        state  = sess.get("state", "none")
-        scol   = self.STATE_COL.get(state, self.C_FAINT)
-        cwd    = sess.get("cwd", "") or ""
-        name   = os.path.basename(cwd.rstrip("\\/")) or sess.get("session_id", "?")[:16]
-        tool   = sess.get("tool", "") or ""
-        ts     = sess.get("ts", time.time())
-        age    = int(time.time() - ts)
-        ago    = (f"{age}s" if age < 60 else f"{age//60}m" if age < 3600 else f"{age//3600}h") + " ago"
+        state = sess.get("state", "none")
+        scol  = self.STATE_COL.get(state, self.C_FAINT)
+        cwd   = sess.get("cwd", "") or ""
+        name  = os.path.basename(cwd.rstrip("\\/")) or sess.get("session_id", "?")[:16]
+        tool  = sess.get("tool", "") or ""
+        ts    = sess.get("ts", time.time())
+        age   = int(time.time() - ts)
+        ago   = (f"{age}s" if age < 60 else
+                 f"{age//60}m" if age < 3600 else
+                 f"{age//3600}h") + " ago"
 
-        W, H = self.CARD_W, self.CARD_H
-        # card bg
-        self._rrect(x, y, x+W, y+H, 8,
+        CW, CH = self.CARD_W, self.CARD_H
+
+        # card background
+        self._rrect(x, y, x+CW, y+CH, 8,
                     fill=self.C_SURF,
                     outline=scol if state != "none" else self.C_BORDER,
                     width=1)
         # left accent bar
-        c.create_rectangle(x+1, y+8, x+4, y+H-8, fill=scol, outline="")
+        c.create_rectangle(x+1, y+8, x+4, y+CH-8, fill=scol, outline="")
 
-        # robot face emoji (large)
-        face = self.ROBOT_FACE.get(state, "🤖")
-        c.create_text(x+20, y+30, text=face, font=("Segoe UI Emoji", 16), anchor="center")
+        # ── Claude robot (canvas primitives) ─────────────────
+        # robot body centre at (x+25, y+52) — head centred there
+        robot_cx = x + 25
+        robot_cy = y + 52
+        self._draw_robot(c, robot_cx, robot_cy, state, scol)
+
+        # ── Chat bubble above the robot ───────────────────────
+        if state == "busy" and tool:
+            bubble = (tool[:15] + "..") if len(tool) > 16 else tool
+        elif state == "idle":
+            bubble = "Ready!"
+        elif state == "permission":
+            bubble = "Approve me!"
+        else:
+            bubble = ""
+
+        if bubble:
+            bx  = robot_cx - 10
+            by  = robot_cy - 35     # just above antenna tip
+            bw  = min(len(bubble) * 5 + 10, CW - x - bx + x - 4)
+            bh  = 13
+            # white rounded bubble
+            c.create_rectangle(bx, by, bx+bw, by+bh,
+                                fill="white", outline="", tags="bubble")
+            c.create_text(bx + bw//2, by + bh//2, text=bubble,
+                          font=("Segoe UI", 7), fill="#111", tags="bubble")
+            # tiny pointer triangle
+            c.create_polygon(bx+6, by+bh, bx+10, by+bh, bx+7, by+bh+5,
+                             fill="white", outline="", tags="bubble")
+
+        # ── Text area to the right of the robot ──────────────
+        tx = x + 50   # text start x
 
         # session name
-        name_t = (name[:19] + "…") if len(name) > 20 else name
-        c.create_text(x+40, y+18, text=name_t,
+        name_t = (name[:17] + "..") if len(name) > 18 else name
+        c.create_text(tx, y + 18, text=name_t,
                       font=("Segoe UI", 9, "bold"), anchor="w", fill=self.C_TEXT)
 
-        # state label
+        # state pill
         lbl = self.STATE_LABEL.get(state, state)
-        c.create_text(x+40, y+33, text=f"● {lbl}",
-                      font=("Segoe UI", 8, "bold"), anchor="w", fill=scol)
+        # draw a small coloured pill
+        pw = len(lbl) * 6 + 10
+        c.create_rectangle(tx, y+28, tx+pw, y+40,
+                           fill=scol + "22", outline=scol, width=1)
+        c.create_text(tx + pw//2, y+34, text=lbl,
+                      font=("Segoe UI", 7, "bold"), fill=scol, anchor="center")
 
-        # detail line (tool or message)
+        # detail line
         if state == "busy" and tool:
-            detail = f"⚙ {tool}"
+            detail = tool
         elif state == "permission" and tool:
-            detail = f"✋ Approve: {tool}?"
+            detail = f"Approve: {tool}?"
         elif state == "idle":
-            detail = "Waiting for your next message"
+            detail = "Waiting for input"
         else:
             detail = ""
         if detail:
-            dt = (detail[:28] + "…") if len(detail) > 29 else detail
-            c.create_text(x+10, y+52, text=dt,
-                          font=("Segoe UI", 8), anchor="w", fill=self.C_DIM)
+            dt = (detail[:20] + "..") if len(detail) > 21 else detail
+            c.create_text(tx, y+50, text=dt,
+                          font=("Segoe UI", 7), anchor="w", fill=self.C_DIM)
 
-        # chat bubble (small white speech bubble near top-right of card)
-        bubble = (tool[:14] + "…") if (state == "busy" and len(tool) > 14) \
-            else tool if state == "busy" \
-            else ("☕ Ready!" if state == "idle" else ("Please approve!" if state == "permission" else ""))
-        if bubble:
-            bx = x + 42
-            by = y + 5
-            bw = min(len(bubble) * 5 + 12, W - 52)
-            bh = 15
-            c.create_rectangle(bx, by, bx+bw, by+bh,
-                                fill="white", outline="", tags="bubble")
-            c.create_text(bx + bw//2, by + bh//2, text=bubble[:20],
-                          font=("Segoe UI", 7), fill="#111", tags="bubble")
-
-        # timestamp bottom-right
-        c.create_text(x+W-6, y+H-6, text=ago,
-                      font=("Segoe UI", 7), anchor="se", fill=self.C_FAINT)
-
-        # device badge if remote
+        # device badge (remote sessions)
         dev = sess.get("device", "local")
         if dev and dev != "local":
-            dev_name = sess.get("device_name") or dev.upper()
-            c.create_text(x+W-6, y+12, text=dev_name,
+            dev_name = (sess.get("device_name") or dev.upper())[:8]
+            c.create_text(x+CW-6, y+16, text=dev_name,
                           font=("Segoe UI", 7, "bold"), anchor="e", fill="#7a8aaa")
+
+        # timestamp bottom-right
+        c.create_text(x+CW-6, y+CH-6, text=ago,
+                      font=("Segoe UI", 7), anchor="se", fill=self.C_FAINT)
 
     def _draw_footer(self, c, W, H):
         c.create_line(0, H-self.FTR_H, W, H-self.FTR_H, fill=self.C_BORDER)
@@ -754,15 +854,47 @@ class OfficePopup:
         if not self._pinned:
             self.hide()
         else:
-            self.refresh()   # redraw footer hint
+            self.refresh()
 
-    def _on_enter(self, _e):
+    def cancel_hide(self):
         if self._hide_id:
             self.ov.root.after_cancel(self._hide_id)
             self._hide_id = None
 
+    def start_hide(self):
+        self.cancel_hide()
+        self._hide_id = self.ov.root.after(220, self._schedule_hide)
+
+    def _schedule_hide(self):
+        """Only hide if mouse has genuinely left both the HUD widget and this popup."""
+        self._hide_id = None
+        if self._pinned:
+            return
+        try:
+            px = self.ov.root.winfo_pointerx()
+            py = self.ov.root.winfo_pointery()
+        except tk.TclError:
+            return
+        # Mouse still over HUD widget?
+        hx = self.ov.root.winfo_x()
+        hy = self.ov.root.winfo_y()
+        if hx <= px <= hx + self.ov.W and hy <= py <= hy + self.ov.H:
+            return
+        # Mouse still over popup?
+        if self._win and self._win.winfo_exists():
+            wx = self._win.winfo_x()
+            wy = self._win.winfo_y()
+            ww = self._win.winfo_width()
+            wh = self._win.winfo_height()
+            if wx <= px <= wx + ww and wy <= py <= wy + wh:
+                return
+        self.hide()
+
+    def _on_enter(self, _e):
+        self.cancel_hide()
+
     def _on_leave(self, _e):
-        self._hide_id = self.ov.root.after(300, self.hide)
+        self.start_hide()
 
 
 # ----------------------------------------------------------------------------
@@ -779,7 +911,6 @@ class Overlay:
         self._drag        = None
         self._tray_icon   = None
         self._dev_summary: dict = {}
-        self._popup_hide_id = None
 
         self.hw = Hardware(
             {k: tuple(v) for k, v in cfg["hw_colors"].items()},
@@ -933,16 +1064,14 @@ class Overlay:
         trigger = self.cfg.get("office_popup", {}).get("trigger", "hover")
         if trigger != "hover":
             return
-        if self._popup_hide_id:
-            self.root.after_cancel(self._popup_hide_id)
-            self._popup_hide_id = None
+        self.popup.cancel_hide()
         self.popup.show()
 
     def _on_hover_leave(self, _e):
         trigger = self.cfg.get("office_popup", {}).get("trigger", "hover")
         if trigger == "none":
             return
-        self._popup_hide_id = self.root.after(320, self.popup.hide)
+        self.popup.start_hide()
 
     # ---- context menu ----
     def _build_menu(self):
