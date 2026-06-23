@@ -22,6 +22,7 @@
     --red:        #eb2d2d;
     --red-glow:   rgba(235,45,45,0.18);
     --grey:       #5f646e;
+    --blue:       #3b9eff;
     --ease-snap:  cubic-bezier(0.23, 1, 0.32, 1);
   }
 
@@ -36,13 +37,11 @@
     width: 280px;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     color: var(--text);
-    /* Prevent text selection during drag */
     user-select: none;
     -webkit-user-select: none;
     overflow: hidden;
   }
 
-  /* Grab cursor over the full widget */
   #hud-root {
     cursor: grab;
     width: 280px;
@@ -63,7 +62,6 @@
     position: relative;
     overflow: hidden;
   }
-  /* Top-left highlight matching the mockup */
   .hud-overlay::before {
     content: "";
     position: absolute;
@@ -84,13 +82,33 @@
     text-overflow: ellipsis;
   }
 
+  /* Settings gear icon in header */
+  #tg-gear-btn {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.35;
+    transition: opacity 200ms ease, color 200ms ease;
+    color: var(--text-dim);
+    font-size: 13px;
+    border-radius: 50%;
+  }
+  #tg-gear-btn:hover { opacity: 1; color: var(--blue); }
+  #tg-gear-btn.active { opacity: 1; color: var(--blue); }
+
   /* ── Traffic-light dot ───────────────────────────────── */
   .dot {
     width: 22px; height: 22px;
     border-radius: 50%;
     flex-shrink: 0;
     position: relative;
-    /* Specify exact props — no transition:all */
     transition: background 300ms ease, box-shadow 300ms ease;
   }
   .dot::after {
@@ -111,7 +129,6 @@
   .dot.grey  { background: var(--grey); }
   .dot.grey::after { background: rgba(95,100,110,0.12); }
 
-  /* Pulse animations for active states */
   @keyframes pulse-amber {
     0%,100% { opacity: 1; box-shadow: 0 0 6px var(--amber); }
     50%      { opacity: .5; box-shadow: 0 0 18px var(--amber); }
@@ -134,7 +151,6 @@
     position: relative;
     overflow: hidden;
   }
-  /* Subtle inner gradient — matches hud-overlay::before direction */
   .usage-panel::before {
     content: "";
     position: absolute;
@@ -201,6 +217,156 @@
   }
   .usage-val.v-amber { color: var(--amber); }
   .usage-val.v-red   { color: var(--red); }
+
+  /* ── Telegram settings panel ─────────────────────────── */
+  #tg-panel {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 1px solid var(--border2);
+    border-radius: 0 0 16px 16px;
+    padding: 14px 18px 16px;
+    width: 280px;
+  }
+  #tg-panel.open { display: block; }
+
+  .tg-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .tg-title {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+  .tg-indicator {
+    font-size: 9px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .tg-indicator-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--grey);
+    flex-shrink: 0;
+  }
+  .tg-indicator-dot.on { background: var(--blue); box-shadow: 0 0 5px var(--blue); }
+  .tg-indicator-label { color: var(--text-faint); }
+
+  .tg-field { margin-bottom: 10px; }
+  .tg-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 5px;
+    display: block;
+  }
+  .tg-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 7px;
+    padding: 7px 10px;
+    font-size: 11px;
+    font-family: "Consolas", "Courier New", monospace;
+    color: var(--text);
+    outline: none;
+    transition: border-color 180ms ease;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+  .tg-input::placeholder { color: var(--text-faint); }
+  .tg-input:focus { border-color: var(--blue); }
+
+  /* Toggle switch */
+  .tg-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .tg-toggle-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+  .toggle-wrap {
+    position: relative;
+    width: 34px;
+    height: 18px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .toggle-wrap input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 9px;
+    background: var(--border2);
+    transition: background 200ms ease;
+  }
+  .toggle-wrap input:checked + .toggle-track { background: var(--blue); }
+  .toggle-knob {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 200ms var(--ease-snap);
+    pointer-events: none;
+  }
+  .toggle-wrap input:checked ~ .toggle-knob { transform: translateX(16px); }
+
+  /* Buttons */
+  .tg-btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 2px;
+  }
+  .tg-btn {
+    flex: 1;
+    padding: 7px 0;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: opacity 150ms ease, transform 100ms ease;
+    letter-spacing: .04em;
+  }
+  .tg-btn:active { transform: scale(0.97); }
+  .tg-btn.secondary {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text-dim);
+  }
+  .tg-btn.secondary:hover { color: var(--text); border-color: var(--blue); }
+  .tg-btn.primary {
+    background: var(--blue);
+    color: #fff;
+  }
+  .tg-btn.primary:hover { opacity: 0.88; }
+  .tg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Status message */
+  #tg-status-msg {
+    font-size: 9px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    display: none;
+  }
+  #tg-status-msg.ok  { background: rgba(45,205,95,.1);  color: var(--green); border: 1px solid rgba(45,205,95,.2); }
+  #tg-status-msg.err { background: rgba(235,45,45,.1);  color: var(--red);   border: 1px solid rgba(235,45,45,.2); }
 </style>
 </head>
 <body>
@@ -214,11 +380,12 @@
       <div class="hud-title"  id="hud-title">Waiting for you</div>
       <div class="hud-detail" id="hud-detail">No active sessions</div>
     </div>
+    <button id="tg-gear-btn" type="button" title="Telegram notification settings" aria-label="Telegram notification settings">⚙</button>
   </div>
 
-  <!-- Usage panel (sits flush below the overlay) -->
-  <div class="usage-panel">
-    <div class="usage-ph">API Usage</div>
+  <!-- Usage panel -->
+  <div class="usage-panel" id="usage-panel">
+    <div class="usage-ph">State Tracker</div>
 
     <div class="usage-row">
       <span class="usage-label">Session</span>
@@ -237,7 +404,7 @@
     </div>
 
     <div class="usage-row">
-      <span class="usage-label">Monthly</span>
+      <span class="usage-label">Ctx</span>
       <div class="usage-track">
         <div class="usage-fill c-green" id="bar-monthly"></div>
       </div>
@@ -245,34 +412,217 @@
     </div>
   </div>
 
+  <!-- Telegram settings panel (replaces usage panel when open) -->
+  <div id="tg-panel">
+    <div class="tg-header-row">
+      <span class="tg-title">Telegram Alerts</span>
+      <span class="tg-indicator">
+        <span class="tg-indicator-dot" id="tg-ind-dot"></span>
+        <span class="tg-indicator-label" id="tg-ind-label">Off</span>
+      </span>
+    </div>
+
+    <div id="tg-status-msg"></div>
+
+    <div class="tg-field">
+      <label class="tg-label" for="tg-token-input">Bot Token</label>
+      <input id="tg-token-input" class="tg-input" type="password"
+             placeholder="123456789:ABCdef…" autocomplete="off" spellcheck="false" />
+    </div>
+
+    <div class="tg-field">
+      <label class="tg-label" for="tg-chat-input">Chat ID</label>
+      <input id="tg-chat-input" class="tg-input" type="text"
+             placeholder="e.g. 987654321" autocomplete="off" spellcheck="false" />
+    </div>
+
+    <div class="tg-toggle-row">
+      <label class="toggle-wrap" for="tg-toggle">
+        <input id="tg-toggle" type="checkbox" aria-label="Enable Telegram notifications" />
+        <span class="toggle-track"></span>
+        <span class="toggle-knob"></span>
+      </label>
+      <label class="tg-toggle-label" for="tg-toggle">Enable notifications</label>
+    </div>
+
+    <div class="tg-btn-row">
+      <button type="button" class="tg-btn secondary" id="tg-test-btn">Send Test</button>
+      <button type="button" class="tg-btn primary"   id="tg-save-btn">Save</button>
+    </div>
+  </div>
+
 </div>
 
 <script>
-  // ── Public API ─────────────────────────────────────────────
-  // Called by the Python backend via webview.evaluate_js(...)
+  // ── Telegram Notifier ──────────────────────────────────────────────────────
+  const TG = {
+    KEY: 'claude_hud_tg',
+    cfg: { token: '', chatId: '', enabled: false },
 
-  /**
-   * Update traffic-light state.
-   * @param {'green'|'amber'|'red'|'grey'} color
-   * @param {string} title  e.g. "Working…"
-   * @param {string} detail e.g. "2 sessions · Bash: npm test"
-   */
+    load() {
+      try { Object.assign(this.cfg, JSON.parse(localStorage.getItem(this.KEY) || '{}')); } catch (_) {}
+      this._syncUI();
+    },
+
+    save(token, chatId, enabled) {
+      this.cfg.token   = token.trim();
+      this.cfg.chatId  = chatId.trim();
+      this.cfg.enabled = enabled;
+      localStorage.setItem(this.KEY, JSON.stringify(this.cfg));
+      this._syncUI();
+    },
+
+    async send(text) {
+      const { token, chatId, enabled } = this.cfg;
+      if (!enabled || !token || !chatId) return { ok: false, reason: 'not_configured' };
+      try {
+        const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+        });
+        const d = await r.json();
+        return { ok: d.ok, data: d };
+      } catch (e) {
+        return { ok: false, reason: e.message };
+      }
+    },
+
+    _syncUI() {
+      const dot   = document.getElementById('tg-ind-dot');
+      const label = document.getElementById('tg-ind-label');
+      const gear  = document.getElementById('tg-gear-btn');
+      if (!dot) return;
+      const on = this.cfg.enabled && this.cfg.token && this.cfg.chatId;
+      dot.className   = 'tg-indicator-dot' + (on ? ' on' : '');
+      label.textContent = on ? 'On' : 'Off';
+      if (on) label.style.color = 'var(--blue)';
+      else    label.style.color = '';
+      gear.title = on ? 'Telegram: ON — click to configure' : 'Telegram: OFF — click to configure';
+    },
+  };
+
+  // ── Settings panel toggle ──────────────────────────────────────────────────
+  (function initPanel() {
+    const gearBtn   = document.getElementById('tg-gear-btn');
+    const panel     = document.getElementById('tg-panel');
+    const usagePanel = document.getElementById('usage-panel');
+    const tokenInput = document.getElementById('tg-token-input');
+    const chatInput  = document.getElementById('tg-chat-input');
+    const toggle     = document.getElementById('tg-toggle');
+    const saveBtn    = document.getElementById('tg-save-btn');
+    const testBtn    = document.getElementById('tg-test-btn');
+    const statusMsg  = document.getElementById('tg-status-msg');
+
+    function openPanel() {
+      tokenInput.value = TG.cfg.token;
+      chatInput.value  = TG.cfg.chatId;
+      toggle.checked   = TG.cfg.enabled;
+      statusMsg.style.display = 'none';
+      usagePanel.style.display = 'none';
+      panel.classList.add('open');
+      gearBtn.classList.add('active');
+    }
+
+    function closePanel() {
+      panel.classList.remove('open');
+      usagePanel.style.display = '';
+      gearBtn.classList.remove('active');
+    }
+
+    function showMsg(text, isOk) {
+      statusMsg.textContent = text;
+      statusMsg.className   = isOk ? 'ok' : 'err';
+      statusMsg.style.display = 'block';
+    }
+
+    gearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      panel.classList.contains('open') ? closePanel() : openPanel();
+    });
+
+    saveBtn.addEventListener('click', () => {
+      TG.save(tokenInput.value, chatInput.value, toggle.checked);
+      showMsg('Saved.', true);
+      setTimeout(closePanel, 800);
+    });
+
+    testBtn.addEventListener('click', async () => {
+      const tok = tokenInput.value.trim();
+      const cid = chatInput.value.trim();
+      if (!tok || !cid) { showMsg('Enter token and Chat ID first.', false); return; }
+      testBtn.disabled = true;
+      testBtn.textContent = '…';
+      const prev = { ...TG.cfg };
+      TG.cfg.token   = tok;
+      TG.cfg.chatId  = cid;
+      TG.cfg.enabled = true;
+      const res = await TG.send('🤖 <b>Claude HUD</b> — test message. Notifications are connected!');
+      Object.assign(TG.cfg, prev);
+      testBtn.disabled = false;
+      testBtn.textContent = 'Send Test';
+      if (res.ok) {
+        showMsg('Test sent!', true);
+      } else {
+        const reason = res.data?.description || res.reason || 'Unknown error';
+        showMsg('Failed: ' + reason, false);
+      }
+    });
+
+    // Stop drags from starting when user types in inputs
+    [tokenInput, chatInput].forEach(el => {
+      el.addEventListener('mousedown', e => e.stopPropagation());
+    });
+  })();
+
+  // ── Status tracking & notification triggers ────────────────────────────────
+  let _prevColor = null;
+
   function setStatus(color, title, detail) {
-    document.getElementById('dot').className     = 'dot ' + color;
-    document.getElementById('hud-title').textContent  = title;
+    document.getElementById('dot').className         = 'dot ' + color;
+    document.getElementById('hud-title').textContent = title;
     document.getElementById('hud-detail').textContent = detail;
+
+    // Notify when Claude finishes working and goes idle (amber/red → green)
+    if (_prevColor && _prevColor !== 'green' && _prevColor !== 'grey' && color === 'green') {
+      TG.send(
+        `✅ <b>Claude is done</b>\n\n` +
+        `All sessions finished — waiting for you.\n` +
+        `<i>${detail}</i>`
+      );
+    }
+    // Notify on red (needs attention / error)
+    if (_prevColor && _prevColor !== 'red' && color === 'red') {
+      TG.send(
+        `🔴 <b>Claude needs your attention</b>\n\n` +
+        `<b>${title}</b>\n<i>${detail}</i>`
+      );
+    }
+
+    _prevColor = color;
   }
 
-  /**
-   * Update usage bars with staggered animation.
-   * @param {number} sessionPct  0–100  (5-hour rolling window %)
-   * @param {number} weeklyH     hours used out of 80
-   * @param {number} monthlyPct  0–100  (plan period %)
-   */
-  function setUsage(sessionPct, weeklyH, monthlyPct) {
-    _animateBar('session', sessionPct,            sessionPct + '%',                   0);
-    _animateBar('weekly',  weeklyH / 80 * 100,    weeklyH.toFixed(1) + 'h / 80h',   45);
-    _animateBar('monthly', monthlyPct,             monthlyPct + '%',                  90);
+  // ── State Tracker bars ─────────────────────────────────────────────────────
+  // sessionElapsed: string like "23m" or "1h 14m"
+  // weeklyTokens:   integer token count
+  // ctxPct:         0-100 context window %
+  // weeklyLimit:    integer token limit per week (default 1,000,000)
+  function setUsage(sessionElapsed, weeklyTokens, ctxPct, weeklyLimit) {
+    weeklyLimit = weeklyLimit || 1_000_000;
+    const weeklyPct = Math.min(weeklyTokens / weeklyLimit * 100, 100);
+
+    function fmtTokens(n) {
+      if (n < 1000)       return String(n);
+      if (n < 1_000_000)  return (n / 1000).toFixed(0) + 'K';
+      return (n / 1_000_000).toFixed(1) + 'M';
+    }
+
+    // Row 0 - Session: elapsed time, bar = ctx%
+    _animateBar('session', ctxPct,   sessionElapsed,         null, 0);
+    // Row 1 - Weekly: token count, bar = % of weekly limit
+    _animateBar('weekly',  weeklyPct, fmtTokens(weeklyTokens), null, 45);
+    // Row 2 - Ctx: context %, bar = ctx%
+    _animateBar('monthly', ctxPct,   ctxPct.toFixed(0) + '%', null, 90);
   }
 
   function _colorCls(pct) {
@@ -286,22 +636,20 @@
     return '';
   }
 
-  function _animateBar(id, pct, label, delay) {
+  function _animateBar(id, pct, label, _unused, delay) {
     setTimeout(() => {
       const fill = document.getElementById('bar-' + id);
       const val  = document.getElementById('val-'  + id);
-      // Reset to 0 so the ease-out transition always fires from the start
       fill.style.width = '0';
-      fill.getBoundingClientRect(); // force reflow
-      fill.className = 'usage-fill ' + _colorCls(pct);
+      fill.getBoundingClientRect();
+      fill.className   = 'usage-fill ' + _colorCls(pct);
       fill.style.width = pct + '%';
-      val.textContent = label;
-      val.className   = 'usage-val' + _valCls(pct);
+      val.textContent  = label;
+      val.className    = 'usage-val' + _valCls(pct);
     }, delay);
   }
 
-  // ── Drag to move ───────────────────────────────────────────
-  // The Python side must expose pywebview.api.move_window(dx, dy)
+  // ── Drag to move ───────────────────────────────────────────────────────────
   (function initDrag() {
     const root = document.getElementById('hud-root');
     let sx = 0, sy = 0;
@@ -321,13 +669,11 @@
           window.pywebview.api.move_window(dx, dy);
         }
       };
-
       const onUp = () => {
         root.classList.remove('dragging');
         window.removeEventListener('mousemove', onMove);
         window.removeEventListener('mouseup',   onUp);
       };
-
       window.addEventListener('mousemove', onMove);
       window.addEventListener('mouseup',   onUp);
     });
@@ -339,11 +685,9 @@
     window.pywebview?.api?.show_context_menu?.();
   });
 
-  // ── Boot ───────────────────────────────────────────────────
-  // Animate bars on load with example values.
-  // In production the Python daemon calls setStatus() + setUsage()
-  // after it reads the sessions folder and usage data.
-  setTimeout(() => setUsage(28, 12, 21), 350);
+  // ── Boot ───────────────────────────────────────────────────────────────────
+  TG.load();
+  setTimeout(() => setUsage('23m', 150_234, 33, 1_000_000), 350);
 </script>
 </body>
 </html>

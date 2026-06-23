@@ -66,9 +66,65 @@
                     <i class="fa-solid fa-temperature-high text-rose-400"></i>
                     <span id="header-temp">42°C</span>
                 </div>
+                <!-- Telegram Settings Button -->
+                <button id="tg-settings-btn" type="button" title="Telegram Notifications" aria-label="Open Telegram notification settings" class="flex items-center gap-1.5 bg-slate-800/80 hover:bg-slate-700 px-3 py-1.5 rounded-md border border-slate-700 transition-colors">
+                    <i id="tg-status-icon" class="fa-brands fa-telegram text-slate-400"></i>
+                    <span id="tg-status-label" class="text-slate-400">Telegram</span>
+                </button>
             </div>
         </div>
     </header>
+
+    <!-- Telegram Settings Modal -->
+    <div id="tg-settings-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-6 space-y-5 shadow-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-amber-400 flex items-center gap-2 text-lg">
+                    <i class="fa-brands fa-telegram"></i> Telegram Notifications
+                </h3>
+                <button id="tg-modal-close" type="button" aria-label="Close Telegram settings" class="text-slate-400 hover:text-slate-200 transition-colors">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-400 leading-relaxed">
+                Get notified in your Telegram private chat when tasks complete or when all sessions are done. Create a bot via <span class="text-amber-400 font-semibold">@BotFather</span> and send it a message to obtain your Chat ID.
+            </p>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Bot Token <span class="text-slate-500 font-normal">(from @BotFather)</span></label>
+                    <input id="tg-bot-token" type="password" placeholder="123456789:ABCdef..." autocomplete="off"
+                        class="w-full bg-slate-950 border border-slate-700 focus:border-amber-500 outline-none rounded-lg px-3 py-2 text-sm font-mono text-slate-200 placeholder-slate-600 transition-colors" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Chat ID <span class="text-slate-500 font-normal">(your private chat with the bot)</span></label>
+                    <input id="tg-chat-id" type="text" placeholder="e.g. 987654321" autocomplete="off"
+                        class="w-full bg-slate-950 border border-slate-700 focus:border-amber-500 outline-none rounded-lg px-3 py-2 text-sm font-mono text-slate-200 placeholder-slate-600 transition-colors" />
+                    <p class="text-[10px] text-slate-500 mt-1">Start a chat with your bot, then visit:<br><span class="text-amber-500 font-mono break-all">https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</span></p>
+                </div>
+
+                <div class="flex items-center gap-3 pt-1">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input id="tg-enabled-toggle" type="checkbox" aria-label="Enable Telegram notifications" class="sr-only peer" />
+                        <div class="w-10 h-5 bg-slate-700 rounded-full peer peer-checked:bg-amber-500 peer-focus:ring-1 peer-focus:ring-amber-400 transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5"></div>
+                    </label>
+                    <span class="text-sm text-slate-300">Enable notifications</span>
+                </div>
+            </div>
+
+            <div id="tg-modal-status" class="hidden text-xs font-mono px-3 py-2 rounded-lg border"></div>
+
+            <div class="flex gap-2 pt-1">
+                <button id="tg-test-btn" type="button" class="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 text-sm font-semibold py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-paper-plane"></i> Send Test
+                </button>
+                <button id="tg-save-btn" type="button" class="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 text-sm font-bold py-2 px-3 rounded-lg transition-colors">
+                    Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Main Workspace Container -->
     <main class="flex-1 flex flex-col lg:flex-row relative overflow-hidden">
@@ -338,6 +394,160 @@
 
     <!-- Script Environment Setup -->
     <script>
+        // ── Telegram Notifier ───────────────────────────────────────────────────
+        const TelegramNotifier = {
+            STORAGE_KEY: 'taygedo_tg_settings',
+
+            settings: {
+                botToken: '',
+                chatId: '',
+                enabled: false,
+            },
+
+            load() {
+                try {
+                    const saved = JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '{}');
+                    Object.assign(this.settings, saved);
+                } catch (_) {}
+                this._updateHeaderIndicator();
+            },
+
+            save(botToken, chatId, enabled) {
+                this.settings.botToken = botToken.trim();
+                this.settings.chatId   = chatId.trim();
+                this.settings.enabled  = enabled;
+                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.settings));
+                this._updateHeaderIndicator();
+            },
+
+            async send(text) {
+                const { botToken, chatId, enabled } = this.settings;
+                if (!enabled || !botToken || !chatId) return { ok: false, reason: 'not_configured' };
+
+                try {
+                    const res = await fetch(
+                        `https://api.telegram.org/bot${botToken}/sendMessage`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+                        }
+                    );
+                    const data = await res.json();
+                    return { ok: data.ok, data };
+                } catch (err) {
+                    return { ok: false, reason: err.message };
+                }
+            },
+
+            notifyTaskComplete(zone) {
+                const typeLabel = { coding: 'Coding Desk', servers: 'Server Cabinet', plants: 'Office Flora' };
+                const label = typeLabel[zone.type] || zone.type;
+                this.send(
+                    `✅ <b>Taygedo — Task Complete</b>\n\n` +
+                    `<b>${label}</b> [${zone.id}] has been resolved.\n` +
+                    `Your attention may be needed before continuing.`
+                );
+            },
+
+            notifyAllDone() {
+                this.send(
+                    `🎉 <b>Taygedo — All Sessions Complete!</b>\n\n` +
+                    `Unit T-01 has finished every task in the workspace queue.\n` +
+                    `Everything is done — no further input needed.`
+                );
+            },
+
+            _updateHeaderIndicator() {
+                const icon  = document.getElementById('tg-status-icon');
+                const label = document.getElementById('tg-status-label');
+                if (!icon || !label) return;
+                if (this.settings.enabled && this.settings.botToken && this.settings.chatId) {
+                    icon.className  = 'fa-brands fa-telegram text-cyan-400';
+                    label.textContent = 'Telegram';
+                    label.className = 'text-cyan-400';
+                } else {
+                    icon.className  = 'fa-brands fa-telegram text-slate-500';
+                    label.textContent = 'Telegram';
+                    label.className = 'text-slate-500';
+                }
+            },
+        };
+
+        // ── Telegram Settings Modal UI ──────────────────────────────────────────
+        (function initTelegramModal() {
+            const modal      = document.getElementById('tg-settings-modal');
+            const openBtn    = document.getElementById('tg-settings-btn');
+            const closeBtn   = document.getElementById('tg-modal-close');
+            const saveBtn    = document.getElementById('tg-save-btn');
+            const testBtn    = document.getElementById('tg-test-btn');
+            const tokenInput = document.getElementById('tg-bot-token');
+            const chatInput  = document.getElementById('tg-chat-id');
+            const toggle     = document.getElementById('tg-enabled-toggle');
+            const statusBox  = document.getElementById('tg-modal-status');
+
+            function openModal() {
+                // Populate form from current settings
+                tokenInput.value  = TelegramNotifier.settings.botToken;
+                chatInput.value   = TelegramNotifier.settings.chatId;
+                toggle.checked    = TelegramNotifier.settings.enabled;
+                statusBox.classList.add('hidden');
+                modal.classList.remove('hidden');
+            }
+
+            function closeModal() {
+                modal.classList.add('hidden');
+            }
+
+            function showStatus(msg, ok) {
+                statusBox.textContent = msg;
+                statusBox.className = ok
+                    ? 'text-xs font-mono px-3 py-2 rounded-lg border text-emerald-400 border-emerald-500/40 bg-emerald-950/20'
+                    : 'text-xs font-mono px-3 py-2 rounded-lg border text-rose-400 border-rose-500/40 bg-rose-950/20';
+                statusBox.classList.remove('hidden');
+            }
+
+            openBtn.addEventListener('click', openModal);
+            closeBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+            saveBtn.addEventListener('click', () => {
+                TelegramNotifier.save(tokenInput.value, chatInput.value, toggle.checked);
+                showStatus('Settings saved.', true);
+                writeLog('Telegram notification settings updated.');
+            });
+
+            testBtn.addEventListener('click', async () => {
+                const token = tokenInput.value.trim();
+                const chatId = chatInput.value.trim();
+                if (!token || !chatId) {
+                    showStatus('Enter Bot Token and Chat ID first.', false);
+                    return;
+                }
+                testBtn.disabled = true;
+                testBtn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Sending…';
+                const prev = { ...TelegramNotifier.settings };
+                TelegramNotifier.settings.botToken = token;
+                TelegramNotifier.settings.chatId   = chatId;
+                TelegramNotifier.settings.enabled  = true;
+                const result = await TelegramNotifier.send(
+                    '🤖 <b>Taygedo Test Message</b>\n\nYour Telegram notifications are connected and working!'
+                );
+                Object.assign(TelegramNotifier.settings, prev);
+                testBtn.disabled = false;
+                testBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Test';
+                if (result.ok) {
+                    showStatus('Test message delivered successfully!', true);
+                } else {
+                    const reason = result.data?.description || result.reason || 'Unknown error';
+                    showStatus(`Failed: ${reason}`, false);
+                }
+            });
+        })();
+
+        // ── Load settings on startup ─────────────────────────────────────────────
+        TelegramNotifier.load();
+
         // Sound controller using pure Web Audio API without external URLs
         const SoundSystem = {
             ctx: null,
@@ -818,6 +1028,7 @@
                             closestZone.status = 'completed';
                             autoInteractTarget = null;
                             SoundSystem.playActionComplete();
+                            TelegramNotifier.notifyTaskComplete(closestZone);
                             updateActiveTaskTracker();
                             writeLog(`Successfully resolved ${closestZone.type} module [${closestZone.id}].`);
                         }
@@ -1153,7 +1364,8 @@
         function handleWinSequence() {
             SoundSystem.playLevelComplete();
             writeLog("🎉 MISSION ACCOMPLISHED! All workspace routines completed successfully.");
-            
+            TelegramNotifier.notifyAllDone();
+
             // Pop success modal
             setTimeout(() => {
                 document.getElementById('success-modal').classList.remove('hidden');

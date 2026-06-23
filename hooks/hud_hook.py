@@ -30,6 +30,7 @@ from datetime import datetime, timezone, timedelta
 HUD_DIR = os.path.join(os.path.expanduser("~"), ".claude", "hud")
 SESSIONS_DIR = os.path.join(HUD_DIR, "sessions")
 USAGE_PATH   = os.path.join(HUD_DIR, "usage.json")
+STATE_PATH   = os.path.join(HUD_DIR, "state.json")
 
 BUSY_EVENTS = {"UserPromptSubmit", "PreToolUse", "PostToolUse", "SubagentStop"}
 
@@ -62,6 +63,61 @@ def decide_state(event, data):
 
 
 # ---------------------------------------------------------------------------
+# State tracker helpers
+# ---------------------------------------------------------------------------
+
+def _load_state() -> dict:
+    try:
+        with open(STATE_PATH, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_state(state: dict):
+    try:
+        os.makedirs(HUD_DIR, exist_ok=True)
+        tmp = STATE_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(state, fh)
+        os.replace(tmp, STATE_PATH)
+    except OSError:
+        pass
+
+
+def _week_key(now: datetime) -> str:
+    week_start = (now - timedelta(days=now.weekday())).replace(
+        hour=0, minute=0, second=0, microsecond=0)
+    return week_start.date().isoformat()
+
+
+def _update_session_time(sid: str, event: str):
+    """Track session start/last-seen timestamps in state.json."""
+    state = _load_state()
+    now = datetime.now(timezone.utc)
+    wk = _week_key(now)
+    if state.get("week_start") != wk:
+        state["week_start"] = wk
+        state["weekly_tokens"] = 0
+
+    sessions = state.setdefault("sessions", {})
+
+    if event == "SessionEnd":
+        sessions.pop(sid, None)
+    elif event == "SessionStart":
+        sessions[sid] = {"start_ts": time.time(), "last_ts": time.time()}
+    else:
+        if sid in sessions:
+            sessions[sid]["last_ts"] = time.time()
+        else:
+            # Missed SessionStart — treat now as the start
+            sessions[sid] = {"start_ts": time.time(), "last_ts": time.time()}
+
+    state["ts"] = time.time()
+    _save_state(state)
+
+
+# ---------------------------------------------------------------------------
 # Usage computation from JSONL files
 # ---------------------------------------------------------------------------
 
@@ -72,18 +128,19 @@ def _token_cost(inp, out, cw, cr):
 
 def _write_usage(data: dict, session_id: str):
     """
-    Scan all ~/.claude/projects/**/*.jsonl to aggregate real token costs.
-    Also estimates session context-window % from the most recent assistant
-    message in the current session's JSONL file.
-    Writes the result to USAGE_PATH atomically.
+    Scan all ~/.claude/projects/**/*.jsonl to aggregate real token counts and
+    costs.  Also estimates session context-window % from the most recent
+    assistant message in the current session's JSONL file.
+    Writes results to both USAGE_PATH (legacy) and STATE_PATH atomically.
     """
     now         = datetime.now(timezone.utc)
     week_start  = (now - timedelta(days=now.weekday())).replace(
         hour=0, minute=0, second=0, microsecond=0)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    weekly_cost  = 0.0
-    monthly_cost = 0.0
+    weekly_cost    = 0.0
+    monthly_cost   = 0.0
+    weekly_tokens  = 0   # total tokens (inp+out+cw+cr) this week
     session_ctx_tokens = 0  # max(input + cache_read) seen in current session
 
     projects_dir = os.path.join(os.path.expanduser("~"), ".claude", "projects")
@@ -137,11 +194,13 @@ def _write_usage(data: dict, session_id: str):
                     cr  = int(usage.get("cache_read_input_tokens", 0) or 0)
 
                     cost = _token_cost(inp, out, cw, cr)
+                    toks = inp + out + cw + cr
 
                     if ts >= month_start:
                         monthly_cost += cost
                     if ts >= week_start:
-                        weekly_cost += cost
+                        weekly_cost   += cost
+                        weekly_tokens += toks
 
                     # Context window estimate: context = input + cached reads
                     if is_current:
@@ -154,13 +213,13 @@ def _write_usage(data: dict, session_id: str):
 
     session_ctx_pct = min(session_ctx_tokens / _CTX_WINDOW * 100, 100.0)
 
+    # Write legacy usage.json (backwards compat)
     usage_data = {
         "session_ctx_pct": round(session_ctx_pct, 1),
         "weekly_cost":     round(weekly_cost,  4),
         "monthly_cost":    round(monthly_cost, 4),
         "ts":              time.time(),
     }
-
     try:
         os.makedirs(HUD_DIR, exist_ok=True)
         tmp = USAGE_PATH + ".tmp"
@@ -169,6 +228,17 @@ def _write_usage(data: dict, session_id: str):
         os.replace(tmp, USAGE_PATH)
     except OSError:
         pass
+
+    # Update state.json with accurate token counts and ctx_pct
+    state = _load_state()
+    wk = _week_key(now)
+    if state.get("week_start") != wk:
+        state["week_start"] = wk
+        state["weekly_tokens"] = 0
+    state["weekly_tokens"] = weekly_tokens
+    state["ctx_pct"]       = round(session_ctx_pct, 1)
+    state["ts"]            = time.time()
+    _save_state(state)
 
 
 # ---------------------------------------------------------------------------
@@ -188,6 +258,12 @@ def main():
 
     try:
         os.makedirs(SESSIONS_DIR, exist_ok=True)
+
+        # Always update session timing in state.json
+        try:
+            _update_session_time(sid, event)
+        except Exception:
+            pass
 
         if event == "SessionEnd":
             try:

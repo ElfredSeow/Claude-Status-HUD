@@ -51,6 +51,7 @@ HUD_DIR      = os.path.join(os.path.expanduser("~"), ".claude", "hud")
 SESSIONS_DIR = os.path.join(HUD_DIR, "sessions")
 CONFIG_PATH  = os.path.join(HUD_DIR, "config.json")
 USAGE_PATH   = os.path.join(HUD_DIR, "usage.json")
+STATE_PATH   = os.path.join(HUD_DIR, "state.json")
 LOG_PATH     = os.path.join(HUD_DIR, "hud.log")
 
 BUSY_STALE_SECONDS       = 150
@@ -195,6 +196,34 @@ def _load_usage() -> dict | None:
             return json.load(fh)
     except (OSError, ValueError):
         return None
+
+
+def _load_state() -> dict | None:
+    try:
+        with open(STATE_PATH, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return None
+
+
+def _fmt_elapsed(seconds: float) -> str:
+    s = int(seconds)
+    if s < 60:
+        return f"{s}s"
+    m = s // 60
+    if m < 60:
+        return f"{m}m"
+    h = m // 60
+    rm = m % 60
+    return f"{h}h {rm}m"
+
+
+def _fmt_tokens(n: int) -> str:
+    if n < 1_000:
+        return str(n)
+    if n < 1_000_000:
+        return f"{n / 1_000:.0f}K"
+    return f"{n / 1_000_000:.1f}M"
 
 
 # ----------------------------------------------------------------------------
@@ -571,6 +600,8 @@ class OfficePopup:
         self.visible   = False
         self._hide_id  = None
         self._sessions: list[dict] = []
+        self._cur_W    = 0   # last known popup width (avoids stale winfo_width())
+        self._cur_H    = 0   # last known popup height
 
     # ── geometry ────────────────────────────────────────────
     def _geometry(self):
@@ -845,6 +876,7 @@ class OfficePopup:
         if self._win is None or not self._win.winfo_exists():
             self._build()
         x, y, W, H = self._geometry()
+        self._cur_W, self._cur_H = W, H
         self._win.geometry(f"{W}x{H}+{x}+{y}")
         self._canvas.config(width=W, height=H)
         self._draw(W, H)
@@ -858,6 +890,7 @@ class OfficePopup:
             return
         self._sessions = read_all_sessions()
         x, y, W, H = self._geometry()
+        self._cur_W, self._cur_H = W, H
         self._win.geometry(f"{W}x{H}+{x}+{y}")
         self._canvas.config(width=W, height=H)
         self._draw(W, H)
@@ -893,7 +926,7 @@ class OfficePopup:
 
     def start_hide(self):
         self.cancel_hide()
-        self._hide_id = self.ov.root.after(220, self._schedule_hide)
+        self._hide_id = self.ov.root.after(400, self._schedule_hide)
 
     def _schedule_hide(self):
         """Only hide if mouse has genuinely left both the HUD widget and this popup."""
@@ -914,8 +947,10 @@ class OfficePopup:
         if self._win and self._win.winfo_exists():
             wx = self._win.winfo_x()
             wy = self._win.winfo_y()
-            ww = self._win.winfo_width()
-            wh = self._win.winfo_height()
+            # winfo_width/height can return 1 until the window is fully painted;
+            # fall back to the dimensions we explicitly set in show()/refresh().
+            ww = self._cur_W or self._win.winfo_width()
+            wh = self._cur_H or self._win.winfo_height()
             if wx <= px <= wx + ww and wy <= py <= wy + wh:
                 return
         self.hide()
@@ -1045,11 +1080,11 @@ class Overlay:
             fill=TEXT_DIM_C, font=self.detail_font)
 
         # ── Usage panel section ──
-        c.create_text(18, self.H_TOP + 16, anchor="w", text="API USAGE",
+        c.create_text(18, self.H_TOP + 16, anchor="w", text="STATE TRACKER",
                       fill=TEXT_FAINT_C, font=self.ph_font)
 
         row_ctrs = [self.H_TOP + 37, self.H_TOP + 56, self.H_TOP + 75]
-        row_lbls = ["Session", "Weekly", "Monthly"]
+        row_lbls = ["Session", "Weekly", "Ctx"]
 
         self.usage_tracks = []
         self.usage_fills  = []
@@ -1075,7 +1110,7 @@ class Overlay:
                    for i in range(3))
         self.canvas.itemconfig(self.glow, fill="#%02x%02x%02x" % gr)
 
-    # ---- usage panel ----
+    # ---- state tracker panel ----
     def _usage_color(self, pct: float) -> str:
         if pct >= 85:
             return USG_RED
@@ -1084,40 +1119,69 @@ class Overlay:
         return USG_GREEN
 
     def _refresh_usage(self):
+        # Try state.json first (new format), fall back to usage.json (legacy)
+        state_mtime = 0.0
         try:
-            mtime = os.path.getmtime(USAGE_PATH)
+            state_mtime = os.path.getmtime(STATE_PATH)
         except OSError:
-            return  # No usage file yet — bars stay at dashes
-        if mtime <= self._usage_mtime:
+            pass
+        usage_mtime = 0.0
+        try:
+            usage_mtime = os.path.getmtime(USAGE_PATH)
+        except OSError:
+            pass
+
+        best_mtime = max(state_mtime, usage_mtime)
+        if best_mtime == 0.0:
+            return  # neither file exists yet
+        if best_mtime <= self._usage_mtime:
             return
-        self._usage_mtime = mtime
-        data = _load_usage()
-        if data is None:
-            return
+        self._usage_mtime = best_mtime
 
-        # New format: session_ctx_pct, weekly_cost, monthly_cost (dollars)
-        # Falls back to legacy fields so old usage.json still works.
-        session_pct  = float(data.get("session_ctx_pct",
-                                      data.get("session_pct", 0)))
-        weekly_cost  = float(data.get("weekly_cost",  0))
-        monthly_cost = float(data.get("monthly_cost", 0))
+        # ── Read state.json ──────────────────────────────────────────────
+        state = _load_state()
+        usage = _load_usage()
 
-        # Budget defaults: $200/week, $800/month (configurable via config.json
-        # under "usage_budget": {"weekly": 200, "monthly": 800})
-        budget_cfg     = self.cfg.get("usage_budget", {})
-        weekly_budget  = float(budget_cfg.get("weekly",  200.0))
-        monthly_budget = float(budget_cfg.get("monthly", 800.0))
+        # ctx_pct: prefer state.json, fall back to usage.json
+        ctx_pct = 0.0
+        if state is not None:
+            ctx_pct = float(state.get("ctx_pct", 0))
+        elif usage is not None:
+            ctx_pct = float(usage.get("session_ctx_pct",
+                                      usage.get("session_pct", 0)))
 
-        weekly_pct  = min(weekly_cost  / weekly_budget  * 100, 100.0) \
-                      if weekly_budget  > 0 else 0.0
-        monthly_pct = min(monthly_cost / monthly_budget * 100, 100.0) \
-                      if monthly_budget > 0 else 0.0
+        # weekly tokens: from state.json
+        weekly_tokens = 0
+        if state is not None:
+            weekly_tokens = int(state.get("weekly_tokens", 0))
 
-        targets = [session_pct, weekly_pct, monthly_pct]
+        # session elapsed time: most recently active session in state.json
+        session_label = "—"
+        if state is not None:
+            sessions = state.get("sessions", {})
+            if sessions:
+                now = time.time()
+                most_recent = max(sessions.values(),
+                                  key=lambda s: s.get("last_ts", 0))
+                start_ts  = most_recent.get("start_ts", now)
+                elapsed_s = now - start_ts
+                session_label = _fmt_elapsed(elapsed_s)
+
+        # weekly token limit (configurable under "usage_budget": {"weekly_tokens": N})
+        budget_cfg          = self.cfg.get("usage_budget", {})
+        weekly_token_limit  = int(budget_cfg.get("weekly_tokens", 1_000_000))
+        weekly_pct = min(weekly_tokens / weekly_token_limit * 100, 100.0) \
+                     if weekly_token_limit > 0 else 0.0
+
+        # Row layout:
+        #  0 - Session: elapsed time,   bar = ctx_pct
+        #  1 - Weekly:  token count,    bar = % of weekly limit
+        #  2 - Ctx:     context window, bar = ctx_pct
+        targets = [ctx_pct, weekly_pct, ctx_pct]
         labels  = [
-            f"{session_pct:.0f}%",
-            f"${weekly_cost:.2f}",
-            f"${monthly_cost:.2f}",
+            session_label,
+            _fmt_tokens(weekly_tokens),
+            f"{ctx_pct:.0f}%",
         ]
 
         for i in range(3):
@@ -1267,17 +1331,22 @@ class Overlay:
 
     def _hover_poll(self):
         """Fallback hover detection — catches cases where <Enter> is not re-fired
-        after the popup appears/disappears (common on Windows overrideredirect windows)."""
+        after the popup appears/disappears (common on Windows overrideredirect windows).
+        Also cancels any pending hide timers caused by spurious <Leave> events that
+        fire when canvas items are updated while active sessions are running."""
         try:
             trigger = self.cfg.get("office_popup", {}).get("trigger", "hover")
-            if trigger == "hover" and not self.popup.visible:
+            if trigger == "hover":
                 px = self.root.winfo_pointerx()
                 py = self.root.winfo_pointery()
                 hx = self.root.winfo_x()
                 hy = self.root.winfo_y()
                 if hx <= px <= hx + self.W and hy <= py <= hy + self.H:
+                    # Mouse is over the HUD: cancel any pending hide (even if popup
+                    # is already visible) so spurious <Leave> events don't collapse it.
                     self.popup.cancel_hide()
-                    self.popup.show()
+                    if not self.popup.visible:
+                        self.popup.show()
         except tk.TclError:
             pass
         self.root.after(120, self._hover_poll)
