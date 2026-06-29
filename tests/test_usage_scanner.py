@@ -109,20 +109,21 @@ def test_compute_block_burn_rate_zero_when_elapsed_zero():
 
 
 def test_compute_block_5h_window_correct():
-    # Entries span 2 hours inside a block; verify token sums and time_remaining
-    block_start = datetime(2026, 6, 29, 14, 0, 0, tzinfo=timezone.utc)
-    block_end   = datetime(2026, 6, 29, 19, 0, 0, tzinfo=timezone.utc)
+    # Block is anchored to the MOST RECENT entry's hour (Bug 1 fix).
+    # Both entries fall within the same hour (16:xx), so block_start=16:00, block_end=21:00.
+    block_start = datetime(2026, 6, 29, 16, 0, 0, tzinfo=timezone.utc)
+    block_end   = datetime(2026, 6, 29, 21, 0, 0, tzinfo=timezone.utc)
     now         = datetime(2026, 6, 29, 16, 30, 0, tzinfo=timezone.utc)
     entries = [
         {"timestamp": block_start + timedelta(minutes=10),
          "inp": 1000, "out": 500, "cw": 0, "cr": 0, "model": "claude-sonnet-4-6"},
-        {"timestamp": block_start + timedelta(hours=2),
+        {"timestamp": block_start + timedelta(minutes=20),
          "inp": 2000, "out": 1000, "cw": 0, "cr": 0, "model": "claude-sonnet-4-6"},
     ]
     result = compute_block(entries, now)
     assert result["session_input_tokens"] == 3000
     assert result["session_output_tokens"] == 1500
-    assert result["minutes_remaining"] == 150   # 2h 30m left
+    assert result["minutes_remaining"] == 270   # 4h 30m left (16:30 -> 21:00)
     assert result["block_start"] == block_start.isoformat()
     assert result["block_end"]   == block_end.isoformat()
 

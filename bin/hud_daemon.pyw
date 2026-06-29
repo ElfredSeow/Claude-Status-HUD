@@ -1182,10 +1182,16 @@ class Overlay:
         time_label = f"{h}h {m:02d}m" if h > 0 else f"{m}m"
 
         # Time-left bar: % of 5h window that has elapsed
-        elapsed_min = 300 - minutes_remaining
-        time_pct    = min(elapsed_min / 300 * 100, 100.0)
-        time_color  = (USG_RED   if minutes_remaining < 30  else
-                       USG_AMBER if minutes_remaining < 60  else USG_GREEN)
+        block_start_val = usage.get("block_start")
+        if block_start_val is None:
+            elapsed_min = 0
+            time_pct    = 0.0
+            time_color  = USG_GREEN
+        else:
+            elapsed_min = 300 - minutes_remaining
+            time_pct    = min(elapsed_min / 300 * 100, 100.0)
+            time_color  = (USG_RED   if minutes_remaining < 30  else
+                           USG_AMBER if minutes_remaining < 60  else USG_GREEN)
 
         targets = [0.0, 0.0, time_pct]
         labels  = [cost_label, tokens_label, time_label]

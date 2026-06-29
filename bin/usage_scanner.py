@@ -13,8 +13,17 @@ import os
 import glob
 import json
 import time
-import traceback
+import traceback as _traceback
 from datetime import datetime, timezone, timedelta
+
+_LOG_PATH = os.path.join(os.path.expanduser("~"), ".claude", "hud", "hud.log")
+
+def _log_error(msg: str) -> None:
+    try:
+        with open(_LOG_PATH, "a", encoding="utf-8") as fh:
+            fh.write(f"{__import__('time').strftime('%H:%M:%S')} [scanner] {msg}\n")
+    except OSError:
+        pass
 
 HUD_DIR     = os.path.join(os.path.expanduser("~"), ".claude", "hud")
 USAGE_PATH  = os.path.join(HUD_DIR, "usage.json")
@@ -131,9 +140,9 @@ def compute_block(entries: list[dict], now: datetime) -> dict:
 
     entries = sorted(entries, key=lambda e: e["timestamp"])
 
-    # Round the earliest UTC timestamp down to the nearest whole hour.
-    earliest     = entries[0]["timestamp"]
-    block_start  = earliest.replace(minute=0, second=0, microsecond=0)
+    # Anchor the block to the MOST RECENT entry so the current active session is always shown.
+    latest_entry = entries[-1]["timestamp"]
+    block_start  = latest_entry.replace(minute=0, second=0, microsecond=0)
     block_end    = block_start + timedelta(hours=5)
 
     block_entries = [e for e in entries if block_start <= e["timestamp"] < block_end]
@@ -148,7 +157,7 @@ def compute_block(entries: list[dict], now: datetime) -> dict:
     )
     latest_model = block_entries[-1]["model"]
 
-    elapsed_minutes = (now - block_start).total_seconds() / 60
+    elapsed_minutes = min((now - block_start).total_seconds() / 60, 300.0)
     burn_rate       = (total_cost / elapsed_minutes * 60) if elapsed_minutes > 0 else 0.0
     minutes_remaining = max(0, int((block_end - now).total_seconds() / 60))
 
@@ -267,6 +276,7 @@ def scanner_loop(
         try:
             data = scan_once(projects_dir)
             write_usage_atomic(data, usage_path)
-        except Exception:
-            traceback.print_exc()
+        except Exception as exc:
+            _log_error(f"scan error: {exc}")
+            _log_error(_traceback.format_exc())
         time.sleep(interval)
