@@ -58,10 +58,19 @@ Cache:     cache_creation_input_tokens / cacheCreationInputTokens
 Only process entries where `type == "assistant"` and `isSidechain != true`.
 
 ### Deduplication
-Build a `seen: set[str]` across all files. Key = `f"{message_id}:{request_id}"`. Skip any entry whose key is already in `seen`.
+Build a `seen: set[str]` across all files. Primary key = `f"{message_id}:{request_id}"`.
+
+Fallback when either field is absent:
+- `message_id` missing → use `f"noid:{request_id}"` if `request_id` present
+- `request_id` missing → use `f"{message_id}:noreq"` if `message_id` present
+- Both missing → synthetic key = `f"syn:{timestamp_iso}:{input_tokens}:{output_tokens}"`
+
+Skip any entry whose resolved key is already in `seen`.
 
 ### Model Detection
-Read `message.model` → fallback `data.model` → fallback `"unknown"` per entry. Use the model of the most recent entry in the block as the displayed model name.
+Read `message.model` → fallback `data.model` → fallback `"unknown"` per entry. Use the model of the most recent entry in the block as the displayed model name. Note: cost is calculated per-entry using each entry's own detected model rate, not a single block-level model rate.
+
+**Display truncation rule:** strip the `claude-` prefix from the model string for display. Example: `claude-sonnet-4-6` → `sonnet-4-6`, `claude-opus-4-5` → `opus-4-5`. Store the full model ID in `usage.json`; apply truncation only in the overlay rendering.
 
 ### Model-Aware Pricing (per 1M tokens)
 
@@ -78,14 +87,16 @@ Read `message.model` → fallback `data.model` → fallback `"unknown"` per entr
 Match by checking if the model string starts with the family prefix (case-insensitive).
 
 ### 5-Hour Session Block Algorithm
-1. Collect all deduplicated entries from the last 6 hours (generous window)
+All timestamps are UTC throughout. `now` = `datetime.now(timezone.utc)`.
+
+1. Collect all deduplicated entries where `entry.timestamp >= now - 6h`
 2. Sort by timestamp ascending
-3. Find the most recent "block start": round the timestamp of the first entry in a continuous run down to the nearest hour → `block_start`
+3. Find block start: round the UTC timestamp of the earliest entry down to the nearest whole UTC hour → `block_start`
 4. `block_end = block_start + timedelta(hours=5)`
 5. Filter entries: `block_start <= entry.timestamp < block_end`
 6. Sum: `session_tokens`, `session_cost` across filtered entries
-7. Burn rate: `session_cost / elapsed_minutes * 60` (cost per hour at current pace)
-8. Time remaining: `max(0, block_end - now)`
+7. `elapsed_minutes = (now - block_start).total_seconds() / 60`; burn rate = `session_cost / elapsed_minutes * 60` if `elapsed_minutes > 0` else `0.0`
+8. `minutes_remaining = max(0, int((block_end - now).total_seconds() / 60))`
 
 ### Output Schema (`~/.claude/hud/usage.json`)
 
@@ -133,14 +144,16 @@ Keep in `hud_hook.py`:
 | Model | `sonnet-4-6` | `usage.json.model` (truncated) |
 | Last Updated | `12s ago` | `now - usage.json.scanned_at` |
 
-### Fallback
-If `usage.json` is missing or `scanned_at` is more than 3 minutes old, display `--` for all usage fields. This makes scanner failure visible rather than silently showing stale numbers.
+### Fallback / Stale State
+- **Missing `usage.json`**: display `--` for all usage fields; no staleness indicator shown.
+- **`scanned_at` > 3 minutes ago**: display last known values with a visible `[stale]` tag next to the "Last Updated" line (e.g., `4m ago [stale]`). Do not blank the values — stale data is more useful than nothing, but the user must know it's stale.
+- **Scanner thread dead** (detected by daemon health check): same as stale treatment above.
 
 ## Error Handling
 - Malformed JSONL lines: skip and continue (log to `hud.log`)
 - Missing `~/.claude/projects/` directory: write empty/zero snapshot, retry next cycle
 - Scanner thread crash: log exception, restart thread after 10s backoff
-- `usage.json` write failure: log and continue (don't crash daemon)
+- **Atomic write for `usage.json`**: write to `usage.json.tmp` in the same directory, then `os.replace(tmp, usage.json)`. This prevents the daemon from reading a partially-written file if the scanner and daemon run concurrently.
 
 ## Out of Scope
 - Multi-account JSONL separation (single user setup)
