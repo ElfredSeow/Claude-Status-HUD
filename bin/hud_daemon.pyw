@@ -43,6 +43,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from logi_led import LogiLED  # noqa: E402
+from usage_scanner import scanner_loop  # noqa: E402
 
 # ----------------------------------------------------------------------------
 # Paths / constants
@@ -125,6 +126,14 @@ def log(msg):
             fh.write(f"{time.strftime('%H:%M:%S')} {msg}\n")
     except OSError:
         pass
+
+
+def _start_scanner_thread() -> threading.Thread:
+    """Start the background JSONL scanner as a daemon thread."""
+    t = threading.Thread(target=scanner_loop, daemon=True, name="usage-scanner")
+    t.start()
+    log("usage scanner thread started")
+    return t
 
 
 def _safe_sid(s):
@@ -1557,6 +1566,7 @@ def main():
         return
 
     start_remote_receiver(cfg)
+    _start_scanner_thread()
 
     log("HUD daemon starting")
     overlay = Overlay(cfg)
