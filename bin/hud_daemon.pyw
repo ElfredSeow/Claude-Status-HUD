@@ -975,7 +975,7 @@ class OfficePopup:
 # Overlay window
 # ----------------------------------------------------------------------------
 class Overlay:
-    W, H  = 280, 148   # connected card: traffic-light + usage panel
+    W, H  = 280, 165   # connected card: traffic-light + usage panel
     H_TOP = 47         # height of traffic-light section
 
     def __init__(self, cfg):
@@ -1022,7 +1022,6 @@ class Overlay:
         self.usage_tracks: list  = []
         self.usage_vals:   list  = []
         self._usage_pcts:  list  = [0.0, 0.0, 0.0]
-        self._usage_mtime: float = 0.0
         self._bar_anim:    list  = [None, None, None]
 
         self.popup = OfficePopup(self)
@@ -1093,7 +1092,7 @@ class Overlay:
                       fill=TEXT_FAINT_C, font=self.ph_font)
 
         row_ctrs = [self.H_TOP + 37, self.H_TOP + 56, self.H_TOP + 75]
-        row_lbls = ["Session", "Weekly", "Ctx"]
+        row_lbls = ["Cost", "Tokens", "Left"]
 
         self.usage_tracks = []
         self.usage_fills  = []
@@ -1112,6 +1111,12 @@ class Overlay:
                                 fill=TEXT_DIM_C, font=self.usg_font)
             self.usage_vals.append(vl)
 
+        # Compact footer: burn rate · model · last updated
+        self._usage_footer = c.create_text(
+            self.W // 2, self.H_TOP + 97, anchor="center", text="",
+            fill=TEXT_FAINT_C, font=self.ph_font,
+        )
+
     def _set_dot(self, rgb, glow_alpha):
         hexc = "#%02x%02x%02x" % rgb
         self.canvas.itemconfig(self.led_dot, fill=hexc)
@@ -1128,82 +1133,83 @@ class Overlay:
         return USG_GREEN
 
     def _refresh_usage(self):
-        # Try state.json first (new format), fall back to usage.json (legacy)
-        state_mtime = 0.0
-        try:
-            state_mtime = os.path.getmtime(STATE_PATH)
-        except OSError:
-            pass
-        usage_mtime = 0.0
-        try:
-            usage_mtime = os.path.getmtime(USAGE_PATH)
-        except OSError:
-            pass
+        """Read usage.json (written by scanner thread) and update the display."""
+        from datetime import datetime, timezone as _tz
 
-        best_mtime = max(state_mtime, usage_mtime)
-        if best_mtime == 0.0:
-            return  # neither file exists yet
-        if best_mtime <= self._usage_mtime:
-            return
-        self._usage_mtime = best_mtime
-
-        # ── Read state.json ──────────────────────────────────────────────
-        state = _load_state()
         usage = _load_usage()
 
-        # ctx_pct: prefer state.json, fall back to usage.json
-        ctx_pct = 0.0
-        if state is not None:
-            ctx_pct = float(state.get("ctx_pct", 0))
-        elif usage is not None:
-            ctx_pct = float(usage.get("session_ctx_pct",
-                                      usage.get("session_pct", 0)))
+        if usage is None:
+            for i in range(3):
+                self.root.after(
+                    i * 45,
+                    lambda i=i: self._animate_bar_to(
+                        i, self._usage_pcts[i], 0.0, "—", USG_GREEN),
+                )
+            self.canvas.itemconfig(self._usage_footer, text="", fill=TEXT_FAINT_C)
+            return
 
-        # weekly tokens: from state.json
-        weekly_tokens = 0
-        if state is not None:
-            weekly_tokens = int(state.get("weekly_tokens", 0))
+        # ── Stale / last-updated label ──────────────────────────────────────
+        scanned_at_str = usage.get("scanned_at", "")
+        age_label = ""
+        stale = False
+        if scanned_at_str:
+            try:
+                scanned_at = datetime.fromisoformat(scanned_at_str)
+                age_s = int((datetime.now(_tz.utc) - scanned_at).total_seconds())
+                if age_s < 60:
+                    age_label = f"{age_s}s ago"
+                elif age_s < 3600:
+                    age_label = f"{age_s // 60}m ago"
+                else:
+                    age_label = f"{age_s // 3600}h ago"
+                if age_s > 180:
+                    stale = True
+                    age_label += " [stale]"
+            except (ValueError, AttributeError):
+                age_label = "?"
 
-        # session elapsed time: most recently active session in state.json
-        session_label = "—"
-        if state is not None:
-            sessions = state.get("sessions", {})
-            if sessions:
-                now = time.time()
-                most_recent = max(sessions.values(),
-                                  key=lambda s: s.get("last_ts", 0))
-                start_ts  = most_recent.get("start_ts", now)
-                elapsed_s = now - start_ts
-                session_label = _fmt_elapsed(elapsed_s)
+        # ── Values ──────────────────────────────────────────────────────────
+        session_cost      = float(usage.get("session_cost", 0))
+        session_tokens    = int(usage.get("session_tokens", 0))
+        minutes_remaining = int(usage.get("minutes_remaining", 0))
+        burn_rate         = float(usage.get("burn_rate_per_hour", 0))
+        model             = str(usage.get("model", "unknown"))
+        model_display     = model.removeprefix("claude-") if model != "unknown" else "—"
 
-        # weekly token limit (configurable under "usage_budget": {"weekly_tokens": N})
-        budget_cfg          = self.cfg.get("usage_budget", {})
-        weekly_token_limit  = int(budget_cfg.get("weekly_tokens", 1_000_000))
-        weekly_pct = min(weekly_tokens / weekly_token_limit * 100, 100.0) \
-                     if weekly_token_limit > 0 else 0.0
+        cost_label   = f"${session_cost:.3f}"
+        tokens_label = _fmt_tokens(session_tokens)
+        h, m = divmod(minutes_remaining, 60)
+        time_label = f"{h}h {m:02d}m" if h > 0 else f"{m}m"
 
-        # Row layout:
-        #  0 - Session: elapsed time,   bar = ctx_pct
-        #  1 - Weekly:  token count,    bar = % of weekly limit
-        #  2 - Ctx:     context window, bar = ctx_pct
-        targets = [ctx_pct, weekly_pct, ctx_pct]
-        labels  = [
-            session_label,
-            _fmt_tokens(weekly_tokens),
-            f"{ctx_pct:.0f}%",
-        ]
+        # Time-left bar: % of 5h window that has elapsed
+        elapsed_min = 300 - minutes_remaining
+        time_pct    = min(elapsed_min / 300 * 100, 100.0)
+        time_color  = (USG_RED   if minutes_remaining < 30  else
+                       USG_AMBER if minutes_remaining < 60  else USG_GREEN)
+
+        targets = [0.0, 0.0, time_pct]
+        labels  = [cost_label, tokens_label, time_label]
+        colors  = [USG_GREEN, USG_GREEN, time_color]
 
         for i in range(3):
             old_pct = self._usage_pcts[i]
             new_pct = targets[i]
-            col     = self._usage_color(new_pct)
             delay   = i * 45
             self.root.after(
                 delay,
-                lambda i=i, old=old_pct, new=new_pct, lbl=labels[i], c=col:
-                    self._animate_bar_to(i, old, new, lbl, c),
+                lambda i=i, old=old_pct, new=new_pct, lbl=labels[i], col=colors[i]:
+                    self._animate_bar_to(i, old, new, lbl, col),
             )
             self._usage_pcts[i] = new_pct
+
+        # ── Footer compact line ──────────────────────────────────────────────
+        burn_str = f"${burn_rate:.3f}/hr" if burn_rate > 0 else "$0/hr"
+        footer   = f"⚡ {burn_str}  ·  {model_display}  ·  {age_label}"
+        self.canvas.itemconfig(
+            self._usage_footer,
+            text=footer,
+            fill=USG_AMBER if stale else TEXT_FAINT_C,
+        )
 
     def _animate_bar_to(self, idx: int, start_pct: float, end_pct: float,
                         label: str, color: str, duration_ms: int = 520):
